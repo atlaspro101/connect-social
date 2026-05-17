@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+    <filter id="glass">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Фоновый круг с градиентом и размытием -->
+  <circle cx="50" cy="50" r="46" fill="url(#bg)" filter="url(#glass)"/>
+
+  <!-- Полупрозрачный стеклянный слой -->
+  <circle cx="50" cy="50" r="46" fill="#ffffff" opacity="0.15"/>
+
+  <!-- Обводка -->
+  <circle cx="50" cy="50" r="46" fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1.5"/>
+
+  <!-- Внутренняя тень через inset-слой -->
+  <circle cx="50" cy="50" r="46" fill="none" stroke="#000000" stroke-opacity="0.15" stroke-width="3"/>
+
+  <!-- Буква C -->
+  <text x="50" y="67" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#ffffff" filter="drop-shadow(1px 1px 3px rgba(0,0,0,0.125))">C</text>
+</svg>

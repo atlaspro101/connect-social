@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пост - СоцСеть</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-brand">✨ СоцСеть</div>
+        <div class="navbar-links">
+            <span>👋 {{ username }}</span>
+            <a href="{{ url_for('feed') }}">📱 Лента</a>
+            <a href="{{ url_for('logout') }}">🚪 Выйти</a>
+        </div>
+    </div>
+    
+    <div class="feed-container">
+        <a href="{{ url_for('feed') }}" class="back-btn">← Назад к ленте</a>
+        
+        <div class="post">
+            <div class="post-header">
+                <span class="post-author">👤 {{ post.username }}</span>
+                <span class="post-date">{{ post.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+            </div>
+            <div class="post-content">
+                {{ post.content }}
+            </div>
+            {% if post.media_path %}
+            <div class="post-media">
+                {% if post.media_type == 'image' %}
+                    <img src="{{ url_for('static', filename=post.media_path.split('static/')[1]) }}" alt="Post image">
+                {% elif post.media_type == 'gif' %}
+                    <img src="{{ url_for('static', filename=post.media_path.split('static/')[1]) }}" alt="Post GIF">
+                {% elif post.media_type == 'audio' %}
+                    <audio controls class="audio-player">
+                        <source src="{{ url_for('static', filename=post.media_path.split('static/')[1]) }}" type="audio/mpeg">
+                    </audio>
+                {% endif %}
+            </div>
+            {% endif %}
+            <div class="post-actions">
+                <span>❤️ {{ post.likes }} лайков</span>
+            </div>
+        </div>
+        
+        <div class="comments-section">
+            <h2>💬 Комментарии ({{ comments|length }})</h2>
+            
+            <div class="glass-card">
+                <form method="POST" action="{{ url_for('add_comment_route', post_id=post.id) }}" enctype="multipart/form-data">
+                    <textarea name="content" placeholder="Ваш комментарий..."></textarea>
+                    <div class="file-input">
+                        <label>🎤 Записать голосовое сообщение:</label>
+                        <input type="file" name="voice" accept="audio/*">
+                    </div>
+                    <button type="submit">Отправить комментарий 💬</button>
+                </form>
+            </div>
+            
+            {% if comments %}
+                {% for comment in comments %}
+                <div class="comment">
+                    <div class="comment-header">
+                        <span class="comment-author">{{ comment.username }}</span>
+                        <span class="post-date">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    </div>
+                    {% if comment.content %}
+                    <div class="comment-content">
+                        {{ comment.content }}
+                    </div>
+                    {% endif %}
+                    {% if comment.voice_path %}
+                    <div class="comment-voice">
+                        <audio controls>
+                            <source src="{{ url_for('static', filename=comment.voice_path.split('static/')[1]) }}" type="audio/mpeg">
+                        </audio>
+                    </div>
+                    {% endif %}
+                    <div class="post-actions">
+                        <span>❤️ {{ comment.likes }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-posts">
+                    <p>😢 Нет комментариев. Будьте первым!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

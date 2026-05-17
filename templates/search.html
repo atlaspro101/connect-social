@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/feed" class="logo">✨ Connect</a>
+            <div class="nav-links">
+                <input type="text" class="search-input" placeholder="🔍 Поиск..." id="searchInput" 
+                       value="{{ query }}" onkeyup="if(event.key==='Enter') window.location.href='/search?q='+this.value">
+                <a href="/feed">🏠 Лента</a>
+                <a href="/profile/{{ session.user_id }}">👤 Профиль</a>
+                <a href="/logout">🚪 Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="search-results">
+        <h1 style="margin-bottom: 24px;">🔍 Результаты поиска: "{{ query }}"</h1>
+        
+        {% if users %}
+            {% for user in users %}
+            <div class="search-result-card glass-card">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar }}" class="search-result-avatar" alt="{{ user.username }}">
+                {% else %}
+                    <div class="avatar-placeholder" style="width: 56px; height: 56px; font-size: 24px;">
+                        {{ user.username[0].upper() }}
+                    </div>
+                {% endif %}
+                <div class="search-result-info">
+                    <div class="search-result-name">{{ user.full_name or user.username }}</div>
+                    <div class="search-result-username">@{{ user.username }}</div>
+                    {% if user.bio %}
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">{{ user.bio[:60] }}</div>
+                    {% endif %}
+                </div>
+                <a href="/profile/{{ user.id }}" class="action-btn" style="padding: 8px 20px;">Перейти</a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="glass-card" style="text-align: center; padding: 60px;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                <h3>Пользователи не найдены</h3>
+                <p style="color: rgba(255,255,255,0.6); margin-top: 8px;">Попробуйте изменить поисковый запрос</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

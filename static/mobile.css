@@ -1,0 +1,612 @@
+/* ============================================
+   MOBILE STYLES FOR CONNECT
+   Адаптация для всех мобильных устройств
+   ============================================ */
+
+/* Tablet and Mobile Devices */
+@media (max-width: 1024px) {
+    .feed-container {
+        max-width: 600px;
+    }
+    
+    .profile-container {
+        max-width: 90%;
+    }
+}
+
+/* Standard Mobile Devices */
+@media (max-width: 768px) {
+    /* Sidebar Mobile */
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        width: 280px;
+        z-index: 1002;
+    }
+    
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    /* Overlay для мобильного меню */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1001;
+        display: none;
+        backdrop-filter: blur(4px);
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+    
+    /* Main Content Mobile */
+    .main-content {
+        margin-left: 0 !important;
+    }
+    
+    /* Toggle Button Mobile */
+    .sidebar-toggle {
+        left: 16px !important;
+        top: 16px;
+        width: 44px;
+        height: 44px;
+        z-index: 1003;
+    }
+    
+    .sidebar-toggle.collapsed {
+        left: 16px !important;
+    }
+    
+    /* Feed Container Mobile */
+    .feed-container {
+        margin-top: 70px;
+        padding: 0 12px;
+    }
+    
+    /* Create Post Mobile */
+    .create-post {
+        padding: 16px;
+        border-radius: 16px;
+    }
+    
+    .create-post textarea {
+        font-size: 14px;
+        padding: 12px;
+        min-height: 80px;
+    }
+    
+    .file-input {
+        padding: 10px;
+        font-size: 13px;
+    }
+    
+    .submit-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    /* Post Card Mobile */
+    .post-card {
+        border-radius: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .post-header {
+        padding: 14px;
+        gap: 10px;
+    }
+    
+    .avatar, .avatar-placeholder {
+        width: 42px;
+        height: 42px;
+        font-size: 18px;
+    }
+    
+    .post-username {
+        font-size: 14px;
+    }
+    
+    .post-fullname {
+        font-size: 11px;
+    }
+    
+    .post-content {
+        padding: 0 14px 14px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    
+    .post-media img {
+        max-height: 300px;
+    }
+    
+    /* Audio Player Mobile */
+    .audio-player-container {
+        padding: 12px;
+        margin: 8px 14px;
+    }
+    
+    audio {
+        height: 40px;
+    }
+    
+    /* Post Actions Mobile */
+    .post-actions {
+        padding: 12px 14px;
+        gap: 15px;
+    }
+    
+    .action-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .action-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    /* Profile Page Mobile */
+    .profile-container {
+        margin-top: 70px;
+        padding: 0 12px;
+    }
+    
+    .profile-header {
+        padding: 24px 20px;
+        border-radius: 20px;
+    }
+    
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 16px;
+    }
+    
+    .profile-name {
+        font-size: 22px;
+    }
+    
+    .profile-username {
+        font-size: 14px;
+    }
+    
+    .profile-bio {
+        font-size: 13px;
+        padding: 0 10px;
+    }
+    
+    .profile-stats {
+        gap: 25px;
+    }
+    
+    .stat-number {
+        font-size: 18px;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+    }
+    
+    .follow-btn, .edit-profile-btn {
+        padding: 10px 28px;
+        font-size: 14px;
+    }
+    
+    /* Posts Grid Mobile */
+    .posts-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+    }
+    
+    .grid-post {
+        border-radius: 12px;
+    }
+    
+    /* Comments Mobile */
+    .comment {
+        padding: 14px;
+    }
+    
+    .comment-header {
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .comment-avatar {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .comment-author {
+        font-size: 13px;
+    }
+    
+    .comment-date {
+        font-size: 10px;
+        margin-left: auto;
+    }
+    
+    .comment-content {
+        margin-left: 42px;
+        font-size: 13px;
+    }
+    
+    .comment-voice {
+        margin-left: 42px;
+    }
+    
+    /* Search Results Mobile */
+    .search-results {
+        margin-top: 70px;
+        padding: 0 12px;
+    }
+    
+    .search-result-card {
+        padding: 14px;
+        gap: 12px;
+    }
+    
+    .search-result-avatar {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .search-result-name {
+        font-size: 14px;
+    }
+    
+    .search-result-username {
+        font-size: 12px;
+    }
+    
+    /* Modal Mobile */
+    .modal-content {
+        padding: 20px;
+        border-radius: 20px;
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .modal-content h2 {
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .modal-content input,
+    .modal-content textarea,
+    .modal-content select {
+        font-size: 14px;
+        padding: 10px;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .modal-buttons button {
+        padding: 12px;
+    }
+    
+    /* Admin Table Mobile */
+    .admin-table {
+        font-size: 12px;
+    }
+    
+    .admin-table th,
+    .admin-table td {
+        padding: 8px;
+    }
+    
+    /* Lightbox Mobile */
+    .lightbox-close {
+        top: 20px;
+        right: 20px;
+        font-size: 40px;
+    }
+    
+    .lightbox img {
+        max-width: 95%;
+        max-height: 85%;
+    }
+    
+    /* Touch-friendly Improvements */
+    button, 
+    .action-btn, 
+    .follow-btn, 
+    .sidebar-item,
+    .submit-btn,
+    .file-input {
+        min-height: 44px;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Prevent Zoom on iOS for inputs */
+    input, 
+    textarea, 
+    select {
+        font-size: 16px !important;
+    }
+    
+    /* Better Scrolling */
+    .comments-section {
+        max-height: 60vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Glass Effect Optimization for Mobile */
+    .glass-card, 
+    .post-card, 
+    .create-post, 
+    .profile-header {
+        backdrop-filter: blur(8px);
+    }
+}
+
+/* Small Phones (<=480px) */
+@media (max-width: 480px) {
+    /* Sidebar Small */
+    .sidebar {
+        width: 260px;
+    }
+    
+    .sidebar-header {
+        padding: 20px 16px;
+    }
+    
+    .sidebar-logo {
+        font-size: 24px;
+    }
+    
+    .sidebar-user {
+        padding: 10px;
+    }
+    
+    .sidebar-avatar {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .sidebar-username {
+        font-size: 13px;
+    }
+    
+    .sidebar-nav {
+        padding: 16px;
+    }
+    
+    .sidebar-item {
+        padding: 10px 12px;
+        gap: 12px;
+    }
+    
+    .sidebar-text {
+        font-size: 13px;
+    }
+    
+    /* Feed Small */
+    .feed-container {
+        margin-top: 65px;
+    }
+    
+    .create-post {
+        padding: 12px;
+    }
+    
+    .post-header {
+        padding: 12px;
+    }
+    
+    .avatar, .avatar-placeholder {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    
+    .post-content {
+        padding: 0 12px 12px;
+        font-size: 13px;
+    }
+    
+    .post-actions {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+    
+    .action-btn {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+    
+    .action-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Profile Small */
+    .profile-header {
+        padding: 20px 16px;
+    }
+    
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .profile-name {
+        font-size: 20px;
+    }
+    
+    .profile-stats {
+        gap: 20px;
+    }
+    
+    .stat-number {
+        font-size: 16px;
+    }
+    
+    /* Posts Grid Small */
+    .posts-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .grid-post {
+        aspect-ratio: 16/9;
+    }
+    
+    /* Comments Small */
+    .comment {
+        padding: 12px;
+    }
+    
+    .comment-content {
+        margin-left: 38px;
+        font-size: 12px;
+    }
+    
+    .comment-voice {
+        margin-left: 38px;
+    }
+    
+    /* Volume Slider Small */
+    .volume-slider {
+        width: 100px;
+    }
+}
+
+/* Landscape Mode */
+@media (max-width: 768px) and (orientation: landscape) {
+    .feed-container {
+        margin-top: 60px;
+    }
+    
+    .profile-container {
+        margin-top: 60px;
+    }
+    
+    .post-media img {
+        max-height: 250px;
+    }
+    
+    .comments-section {
+        max-height: 50vh;
+    }
+    
+    .sidebar {
+        width: 240px;
+    }
+    
+    .sidebar-header {
+        padding: 16px;
+    }
+    
+    .sidebar-user {
+        margin-top: 12px;
+    }
+}
+
+/* Dark Mode Enhancements for Mobile */
+@media (max-width: 768px) {
+    .post-card, 
+    .create-post, 
+    .profile-header {
+        border-width: 0.5px;
+    }
+    
+    /* Better Contrast for Mobile */
+    .post-content {
+        line-height: 1.5;
+    }
+    
+    .comment-content {
+        line-height: 1.5;
+    }
+    
+    /* Smooth Transitions */
+    .sidebar,
+    .main-content,
+    .sidebar-toggle {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+}
+
+/* iOS Specific Fixes */
+@supports (-webkit-touch-callout: none) {
+    .sidebar,
+    .navbar {
+        backdrop-filter: blur(20px);
+    }
+    
+    .glass-card,
+    .post-card,
+    .create-post {
+        backdrop-filter: blur(10px);
+    }
+}
+
+/* High Resolution Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .sidebar {
+        backdrop-filter: blur(25px);
+    }
+    
+    .glass-card {
+        backdrop-filter: blur(15px);
+    }
+}
+
+/* Notch Support for Modern Phones */
+@supports (padding: max(0px)) {
+    .sidebar {
+        padding-top: max(0px, env(safe-area-inset-top));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+    
+    .sidebar-toggle {
+        top: max(20px, env(safe-area-inset-top));
+    }
+    
+    .feed-container {
+        padding-top: max(0px, env(safe-area-inset-top));
+    }
+}
+
+/* Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .sidebar-toggle,
+    .post-actions,
+    .follow-btn {
+        display: none;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .post-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .register-container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 40px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: white;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        input::placeholder, textarea::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .gender-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .gender-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .gender-group input {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .link {
+            text-align: center;
+            margin-top: 20px;
+            color: white;
+        }
+        
+        .link a {
+            color: white;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .register-container {
+                padding: 20px;
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>✨ Создать аккаунт</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>👤 Имя пользователя *</label>
+                <input type="text" name="username" placeholder="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label>📛 Полное имя</label>
+                <input type="text" name="full_name" placeholder="Иван Иванов">
+            </div>
+            
+            <div class="form-group">
+                <label>🔒 Пароль *</label>
+                <input type="password" name="password" placeholder="••••••••" required>
+            </div>
+            
+            <div class="form-group">
+                <label>🎂 Дата рождения</label>
+                <input type="date" name="birthday">
+            </div>
+            
+            <div class="form-group">
+                <label>⚥ Пол</label>
+                <div class="gender-group">
+                    <label>
+                        <input type="radio" name="gender" value="male"> Мужской
+                    </label>
+                    <label>
+                        <input type="radio" name="gender" value="female"> Женский
+                    </label>
+                    <label>
+                        <input type="radio" name="gender" value="other"> Другой
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📝 О себе</label>
+                <textarea name="bio" rows="3" placeholder="Расскажите о себе..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>🖼 Аватарка</label>
+                <input type="file" name="avatar" accept="image/*">
+            </div>
+            
+            <button type="submit">Зарегистрироваться 🚀</button>
+        </form>
+        <div class="link">
+            <a href="{{ url_for('login') }}">Уже есть аккаунт? Войти</a>
+        </div>
+    </div>
+</body>
+</html>

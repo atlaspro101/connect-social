@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Сообщения - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <style>
+        .chats-container { max-width: 800px; margin: 80px auto 40px; padding: 0 20px; }
+        .chat-list { display: flex; flex-direction: column; gap: 12px; }
+        .chat-item { display: flex; align-items: center; gap: 15px; padding: 16px; background: rgba(20,30,45,0.6); backdrop-filter: blur(12px); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.3s; text-decoration: none; }
+        .chat-item:hover { transform: translateX(8px); background: rgba(20,30,45,0.8); }
+        .chat-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: linear-gradient(135deg,#667eea,#764ba2); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; color: white; }
+        .chat-info { flex: 1; }
+        .chat-name { font-weight: 700; font-size: 16px; color: white; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .chat-last-message { font-size: 13px; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+        .chat-time { font-size: 11px; color: rgba(255,255,255,0.4); }
+        .unread-badge { background: #ff4757; color: white; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 20px; }
+        .empty-chats { text-align: center; padding: 60px; background: rgba(20,30,45,0.6); border-radius: 20px; }
+        @media (max-width: 768px) { .chats-container { margin-top: 70px; } .chat-avatar { width: 48px; height: 48px; } }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">✨ Connect</div>
+            <div class="sidebar-user">
+                {% if user_avatar %}<img src="{{ user_avatar }}" class="sidebar-avatar" style="width:48px;height:48px;border-radius:50%;">{% else %}<div class="avatar-placeholder" style="width:48px;height:48px;">{{ session.username[0].upper() }}</div>{% endif %}
+                <div class="sidebar-user-info"><div class="sidebar-username">{{ session.username }}</div><div class="sidebar-user-status">● Онлайн</div></div>
+            </div>
+        </div>
+        <div class="sidebar-nav">
+            <a href="/feed" class="sidebar-item"><div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-5v-8H7v8H5a2 2 0 0 1-2-2z"/></svg></div><span class="sidebar-text">Лента</span></a>
+            <a href="/profile/{{ session.user_id }}" class="sidebar-item"><div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><span class="sidebar-text">Профиль</span></a>
+            <a href="/chats" class="sidebar-item active"><div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><span class="sidebar-text">Сообщения</span>{% if unread_count > 0 %}<span class="sidebar-badge">{{ unread_count }}</span>{% endif %}</a>
+            <a href="#" class="sidebar-item" id="searchBtn"><div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><span class="sidebar-text">Поиск</span></a>
+            <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;"><a href="/logout" class="sidebar-item"><div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div><span class="sidebar-text">Выйти</span></a></div>
+        </div>
+    </div>
+    <div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></div>
+    <div class="main-content" id="mainContent">
+        <div class="chats-container"><h1 style="margin-bottom:24px;">💬 Сообщения</h1>
+            <div class="chat-list">
+                {% if chats %}
+                    {% for chat in chats %}
+                    <a href="/chat/{{ chat.other_user_id }}" class="chat-item">
+                        <div class="chat-avatar">{% if chat.avatar %}<img src="{{ chat.avatar }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">{% else %}{{ chat.username[0].upper() }}{% endif %}</div>
+                        <div class="chat-info"><div class="chat-name">{{ chat.username }}</div><div class="chat-last-message">{{ chat.last_message[:50] if chat.last_message else 'Нет сообщений' }}</div></div>
+                        <div class="chat-time">{% if chat.last_message_time %}{% if chat.last_message_time.strftime %}{{ chat.last_message_time.strftime('%H:%M') }}{% else %}{{ chat.last_message_time }}{% endif %}{% endif %}</div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-chats"><div style="font-size:64px;margin-bottom:20px;">💬</div><h3>Нет сообщений</h3><p style="color:rgba(255,255,255,0.6);margin-top:8px;">Начните диалог с другим пользователем</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleSidebar() {
+            const s=document.getElementById('sidebar'),m=document.getElementById('mainContent'),t=document.getElementById('sidebarToggle');
+            if(window.innerWidth>768){s.classList.toggle('collapsed');m.classList.toggle('expanded');t.classList.toggle('collapsed');localStorage.setItem('sidebarCollapsed',s.classList.contains('collapsed'));}
+            else{s.classList.toggle('mobile-open');}
+        }
+        if(window.innerWidth>768&&localStorage.getItem('sidebarCollapsed')==='true'){document.getElementById('sidebar').classList.add('collapsed');document.getElementById('mainContent').classList.add('expanded');document.getElementById('sidebarToggle').classList.add('collapsed');}
+        
+        // Автообновление чатов
+        function updateUnreadCount() {
+            fetch('/api/unread_count').then(r=>r.json()).then(d=>{
+                const badge=document.querySelector('.sidebar-badge');
+                if(badge&&d.count>0){badge.textContent=d.count;badge.style.display='inline-block';}
+                else if(badge){badge.style.display='none';}
+            });
+        }
+        setInterval(updateUnreadCount,3000);
+    </script>
+</body>
+</html>

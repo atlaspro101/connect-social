@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Messenger - Чат с {{ other_user.username }}</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100vh; overflow: hidden; }
+        .messenger { display: flex; height: 100vh; background: #f0f2f5; }
+        .chats-sidebar { width: 380px; background: white; border-right: 1px solid #e0e0e0; display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar-header { padding: 20px 16px; background: white; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; }
+        .new-chat-btn { width: 40px; height: 40px; border-radius: 50%; background: #667eea; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+        .new-chat-btn:hover { transform: scale(1.05); background: #764ba2; }
+        .search-bar { padding: 12px 16px; background: white; }
+        .search-input { width: 100%; padding: 10px 16px; background: #f0f2f5; border: none; border-radius: 30px; font-size: 14px; }
+        .chats-list { flex: 1; overflow-y: auto; }
+        .chat-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; transition: background 0.2s; text-decoration: none; }
+        .chat-item:hover { background: #f5f5f5; }
+        .chat-item.active { background: #e8f0fe; }
+        .chat-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: white; }
+        .chat-info { flex: 1; }
+        .chat-name { font-weight: 600; color: #1a1a2e; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .chat-last-message { font-size: 13px; color: #65676b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-time { font-size: 11px; color: #65676b; }
+        .unread-count { background: #ff4757; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 20px; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; }
+        .chat-header { background: white; padding: 12px 20px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 12px; }
+        .back-btn { display: none; background: none; border: none; font-size: 24px; cursor: pointer; color: #667eea; }
+        .chat-header-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+        .chat-header-info { flex: 1; }
+        .chat-header-name { font-weight: 600; color: #1a1a2e; }
+        .chat-header-status { font-size: 12px; color: #65676b; }
+        .messages-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+        .message { display: flex; margin-bottom: 4px; }
+        .message.sent { justify-content: flex-end; }
+        .message-bubble { max-width: 60%; padding: 8px 12px; border-radius: 18px; word-wrap: break-word; }
+        .message.sent .message-bubble { background: #667eea; color: white; border-bottom-right-radius: 4px; }
+        .message.received .message-bubble { background: white; color: #1a1a2e; border-bottom-left-radius: 4px; }
+        .message-time { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 4px; text-align: right; }
+        .message.received .message-time { color: #65676b; }
+        .message-emoji { font-size: 30px; margin: 5px 0; }
+        .message-input-container { background: white; padding: 12px 20px; display: flex; gap: 12px; align-items: center; border-top: 1px solid #e0e0e0; }
+        .attach-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #667eea; padding: 8px; border-radius: 50%; transition: background 0.2s; }
+        .attach-btn:hover { background: #f0f2f5; }
+        .message-input { flex: 1; background: #f0f2f5; border: none; border-radius: 24px; padding: 12px 16px; font-size: 14px; resize: none; font-family: inherit; }
+        .message-input:focus { outline: none; }
+        .send-btn { background: #667eea; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; }
+        .send-btn:hover { background: #764ba2; transform: scale(1.05); }
+        @media (max-width: 768px) {
+            .chats-sidebar { position: fixed; left: -100%; top: 0; width: 100%; z-index: 1000; transition: left 0.3s; }
+            .chats-sidebar.open { left: 0; }
+            .back-btn { display: flex; }
+            .message-bubble { max-width: 85%; }
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .message { animation: fadeIn 0.2s ease-out; }
+    </style>
+</head>
+<body>
+    <div class="messenger">
+        <div class="chats-sidebar" id="chatsSidebar">
+            <div class="sidebar-header"><h1>Messenger</h1><button class="new-chat-btn" onclick="openSearchModal()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
+            <div class="search-bar"><input type="text" class="search-input" placeholder="Поиск чатов..." id="searchChats" onkeyup="filterChats()"></div>
+            <div class="chats-list" id="chatsList">
+                {% for chat in chats %}
+                <a href="/chat/{{ chat.other_user_id }}" class="chat-item {% if chat.other_user_id == other_user.id %}active{% endif %}">
+                    <div class="chat-avatar">{% if chat.avatar %}<img src="{{ chat.avatar }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">{% else %}{{ chat.username[0].upper() }}{% endif %}</div>
+                    <div class="chat-info"><div class="chat-name">{{ chat.username }}<span class="chat-time">{% if chat.last_message_time %}{% if chat.last_message_time.strftime %}{{ chat.last_message_time.strftime('%H:%M') }}{% else %}{{ chat.last_message_time }}{% endif %}{% endif %}</span></div><div class="chat-last-message">{{ chat.last_message[:40] if chat.last_message else 'Нет сообщений' }}</div></div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="chat-area">
+            <div class="chat-header">
+                <button class="back-btn" onclick="toggleMobileChats()">←</button>
+                <div class="chat-header-avatar">{% if other_user.avatar %}<img src="{{ other_user.avatar }}" style="width:40px;height:40px;border-radius:50%;">{% else %}<div class="chat-avatar" style="width:40px;height:40px;font-size:16px;">{{ other_user.username[0].upper() }}</div>{% endif %}</div>
+                <div class="chat-header-info"><div class="chat-header-name">{{ other_user.full_name or other_user.username }}</div><div class="chat-header-status" id="userStatus">@{{ other_user.username }}</div></div>
+            </div>
+            
+            <div class="messages-container" id="messagesContainer">
+                {% for message in messages %}
+                <div class="message {% if message.sender_id == session.user_id %}sent{% else %}received{% endif %}">
+                    <div class="message-bubble">
+                        {% if message.message %}{% if '👍' in message.message or '🍕' in message.message or '😂' in message.message %}<div class="message-emoji">{{ message.message }}</div>{% else %}{{ message.message }}{% endif %}{% endif %}
+                        {% if message.media_path and (message.media_path.endswith('.jpg') or message.media_path.endswith('.png') or message.media_path.endswith('.gif')) %}<img src="{{ message.media_path }}" style="max-width:200px;border-radius:12px;margin-top:8px;cursor:pointer;" onclick="openLightbox('{{ message.media_path }}')">{% endif %}
+                        {% if message.media_path and (message.media_path.endswith('.mp3') or message.media_path.endswith('.wav')) %}<audio controls style="width:200px;margin-top:8px;"><source src="{{ message.media_path }}" type="audio/mpeg"></audio>{% endif %}
+                        <div class="message-time">{% if message.created_at %}{% if message.created_at.strftime %}{{ message.created_at.strftime('%H:%M') }}{% else %}{{ message.created_at }}{% endif %}{% endif %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="message-input-container">
+                <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+                <input type="file" id="fileInput" style="display: none;" accept="image/*,audio/*" onchange="sendFile(this)">
+                <textarea class="message-input" id="messageInput" placeholder="Type a message..." rows="1" onkeypress="handleKeyPress(event)"></textarea>
+                <button class="send-btn" onclick="sendMessage()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="lightbox" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:2000;align-items:center;justify-content:center;" onclick="closeLightbox()">
+        <span style="position:absolute;top:20px;right:30px;color:white;font-size:40px;cursor:pointer;">&times;</span>
+        <img id="lightbox-img" style="max-width:90%;max-height:90%;object-fit:contain;">
+    </div>
+    
+    <div id="searchModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+        <div style="background:white;border-radius:16px;padding:24px;max-width:400px;width:90%;"><h2 style="margin-bottom:16px;">Новый чат</h2><input type="text" id="searchUsersInput" placeholder="Введите имя пользователя..." style="width:100%;padding:12px;border:1px solid #e0e0e0;border-radius:12px;margin-bottom:16px;" onkeyup="searchUsersToChat()"><div id="searchUsersResults" style="max-height:300px;overflow-y:auto;"></div><button onclick="closeSearchModal()" style="margin-top:16px;width:100%;padding:10px;background:#f0f2f5;border:none;border-radius:12px;cursor:pointer;">Отмена</button></div>
+    </div>
+    
+    <script>
+        const otherUserId = {{ other_user.id }};
+        let lastMessageId = {{ messages[-1].id if messages else 0 }};
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+            fetch('/send_message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ receiver_id: otherUserId, message: message }) }).then(() => { input.value = ''; loadMessages(); });
+        }
+        
+        function sendFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('media', file);
+            formData.append('receiver_id', otherUserId);
+            formData.append('message', '');
+            fetch('/send_message_file', { method: 'POST', body: formData }).then(() => { input.value = ''; loadMessages(); });
+        }
+        
+        function handleKeyPress(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        
+        function loadMessages() {
+            fetch(`/api/messages/${otherUserId}`).then(r=>r.json()).then(messages => {
+                const container = document.getElementById('messagesContainer');
+                const shouldScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+                if (messages.length > 0 && messages[messages.length-1]?.id !== lastMessageId) {
+                    container.innerHTML = '';
+                    messages.forEach(msg => {
+                        const div = document.createElement('div');
+                        div.className = `message ${msg.sender_id == {{ session.user_id }} ? 'sent' : 'received'}`;
+                        let content = msg.message.replace(/[<>&]/g, function(m) { return {'<':'&lt;','>':'&gt;','&':'&amp;'}[m]; });
+                        if (msg.message && (msg.message.includes('👍') || msg.message.includes('🍕') || msg.message.includes('😂'))) content = `<div class="message-emoji">${msg.message}</div>`;
+                        div.innerHTML = `<div class="message-bubble">${content}<div class="message-time">${msg.created_at}</div></div>`;
+                        container.appendChild(div);
+                    });
+                    lastMessageId = messages[messages.length-1]?.id || 0;
+                    if (shouldScroll) container.scrollTop = container.scrollHeight;
+                }
+            });
+        }
+        
+        function updateOnlineStatus() {
+            fetch('/api/online_status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_ids: [otherUserId] }) })
+                .then(r=>r.json()).then(data => { document.getElementById('userStatus').innerHTML = data[otherUserId] ? '🟢 Online' : '⚫ Offline'; });
+        }
+        
+        function toggleMobileChats() { document.getElementById('chatsSidebar').classList.toggle('open'); }
+        function filterChats() {
+            const q = document.getElementById('searchChats').value.toLowerCase();
+            document.querySelectorAll('#chatsList .chat-item').forEach(c => { c.style.display = c.querySelector('.chat-name').textContent.toLowerCase().includes(q) ? 'flex' : 'none'; });
+        }
+        function openSearchModal() { document.getElementById('searchModal').style.display = 'flex'; }
+        function closeSearchModal() { document.getElementById('searchModal').style.display = 'none'; }
+        function searchUsersToChat() {
+            const q = document.getElementById('searchUsersInput').value;
+            if (q.length < 2) { document.getElementById('searchUsersResults').innerHTML = ''; return; }
+            fetch(`/search?q=${encodeURIComponent(q)}`).then(r=>r.text()).then(html => {
+                const parser = new DOMParser(), doc = parser.parseFromString(html, 'text/html'), results = doc.querySelectorAll('.search-result-card');
+                const container = document.getElementById('searchUsersResults');
+                container.innerHTML = '';
+                results.forEach(r => {
+                    const userId = r.querySelector('a')?.getAttribute('href')?.split('/').pop();
+                    const username = r.querySelector('.search-result-name')?.textContent;
+                    if (userId && userId != otherUserId) {
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding:12px;border-bottom:1px solid #e0e0e0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;';
+                        div.innerHTML = `<span><strong>${username}</strong><br><small>${r.querySelector('.search-result-username')?.textContent}</small></span>`;
+                        div.onclick = () => { window.location.href = `/chat/${userId}`; };
+                        container.appendChild(div);
+                    }
+                });
+            });
+        }
+        
+        function openLightbox(src) { document.getElementById('lightbox-img').src = src; document.getElementById('lightbox').style.display = 'flex'; }
+        function closeLightbox() { document.getElementById('lightbox').style.display = 'none'; }
+        
+        document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+        setInterval(loadMessages, 2000);
+        setInterval(updateOnlineStatus, 5000);
+        updateOnlineStatus();
+        
+        const ta = document.getElementById('messageInput');
+        ta.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 100) + 'px'; });
+    </script>
+</body>
+</html>
