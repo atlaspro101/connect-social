@@ -1515,3 +1515,17 @@ audio::-webkit-media-controls-time-remaining-display {
         padding: 4px;
     }
 }
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: #667eea;
+    border-radius: 50%;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 6px;
+    vertical-align: middle;
+}
