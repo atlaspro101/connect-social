@@ -6,7 +6,6 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from datetime import datetime
 
-# Определяем базовую директорию
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, 'users.db')
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
@@ -16,48 +15,7 @@ app.secret_key = 'connect-secret-key-2026-render'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
-# ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
-
-@app.template_filter('format_time')
-def format_time_filter(date_value):
-    """Форматирует дату в строку"""
-    if not date_value:
-        return ""
-    if isinstance(date_value, datetime):
-        return date_value.strftime('%d.%m.%Y %H:%M')
-    if isinstance(date_value, str):
-        try:
-            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
-            return date_obj.strftime('%d.%m.%Y %H:%M')
-        except:
-            try:
-                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
-                return date_obj.strftime('%d.%m.%Y %H:%M')
-            except:
-                return date_value[:16]
-    return str(date_value)
-
-@app.template_filter('format_date')
-def format_date_filter(date_value):
-    """Форматирует дату в формате 'январь 2026 г.'"""
-    if not date_value:
-        return "январь 2026 г."
-    if isinstance(date_value, datetime):
-        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-        return f"{months[date_value.month - 1]} {date_value.year} г."
-    if isinstance(date_value, str):
-        try:
-            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
-            months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-            return f"{months[date_obj.month - 1]} {date_obj.year} г."
-        except:
-            return "январь 2026 г."
-    return "январь 2026 г."
-
-# ========== СОЗДАНИЕ ПАПОК ==========
-
+# Создаем папки
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'photos'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'gifs'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'voice'), exist_ok=True)
@@ -72,19 +30,26 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
+# ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
+@app.template_filter('format_time')
+def format_time_filter(date_value):
+    if not date_value:
+        return ""
+    if isinstance(date_value, datetime):
+        return date_value.strftime('%d.%m.%Y %H:%M')
+    try:
+        date_obj = datetime.strptime(str(date_value), '%Y-%m-%d %H:%M:%S.%f')
+        return date_obj.strftime('%d.%m.%Y %H:%M')
+    except:
+        return str(date_value)[:16]
 
+# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
 def init_db():
-    """Создает базу данных и таблицы при первом запуске"""
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
-    # Проверяем существует ли таблица users
     c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
     if not c.fetchone():
-        print("📦 Создание базы данных...")
-        
-        # Таблица пользователей
         c.execute('''CREATE TABLE users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -100,7 +65,6 @@ def init_db():
             created_at TIMESTAMP
         )''')
         
-        # Таблица постов
         c.execute('''CREATE TABLE posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -111,7 +75,6 @@ def init_db():
             created_at TIMESTAMP
         )''')
         
-        # Таблица комментариев
         c.execute('''CREATE TABLE comments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             post_id INTEGER,
@@ -120,7 +83,6 @@ def init_db():
             created_at TIMESTAMP
         )''')
         
-        # Таблица лайков
         c.execute('''CREATE TABLE post_likes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             post_id INTEGER,
@@ -128,7 +90,6 @@ def init_db():
             UNIQUE(post_id, user_id)
         )''')
         
-        # Таблица подписчиков
         c.execute('''CREATE TABLE followers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             follower_id INTEGER,
@@ -137,92 +98,83 @@ def init_db():
             UNIQUE(follower_id, following_id)
         )''')
         
-        # Создаем админа
         admin_pass = hash_password("fastyk26tyr")
         c.execute('''INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) 
                      VALUES (?, ?, ?, ?, ?, ?)''',
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
-        
         conn.commit()
         print("✅ База данных создана!")
-        print("👑 Админ создан: taranka / fastyk26tyr")
     
     conn.close()
 
-# Вызываем инициализацию БД
 init_db()
 
-# ========== ФУНКЦИИ БАЗЫ ДАННЫХ ==========
-
-def get_db_connection():
+# ========== ФУНКЦИИ БД ==========
+def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 def add_user(username, password, full_name, birthday, gender, bio, avatar):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO users (username, password, full_name, birthday, gender, bio, avatar, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                   (username, password, full_name or '', birthday or '', gender or '', bio or '', avatar or '', datetime.now(), datetime.now()))
         conn.commit()
         conn.close()
         return True
-    except Exception as e:
-        print(f"Error adding user: {e}")
+    except:
         return False
 
 def get_user(username, password):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin FROM users WHERE username=? AND password=?", 
                   (username, password))
         user = c.fetchone()
         conn.close()
         return user
-    except Exception as e:
-        print(f"Error getting user: {e}")
+    except:
         return None
 
 def get_user_by_id(user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, created_at, last_seen FROM users WHERE id=?", (user_id,))
         user = c.fetchone()
         conn.close()
         return user
-    except Exception as e:
-        print(f"Error getting user by id: {e}")
+    except:
         return None
 
 def update_last_seen(user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("UPDATE users SET last_seen = ? WHERE id = ?", (datetime.now(), user_id))
         conn.commit()
         conn.close()
-    except Exception as e:
-        print(f"Error updating last seen: {e}")
+    except:
+        pass
 
 def add_post(user_id, content, media_path=None, media_type=None):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO posts (user_id, content, media_path, media_type, created_at) VALUES (?, ?, ?, ?, ?)",
                   (user_id, content or '', media_path, media_type, datetime.now()))
         conn.commit()
         conn.close()
         return True
-    except Exception as e:
-        print(f"Error adding post: {e}")
+    except:
         return False
 
 def get_all_posts():
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
                      FROM posts 
@@ -231,13 +183,12 @@ def get_all_posts():
         posts = c.fetchall()
         conn.close()
         return [dict(post) for post in posts]
-    except Exception as e:
-        print(f"Error getting posts: {e}")
+    except:
         return []
 
 def get_user_posts(user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute('''SELECT posts.*, users.username, users.avatar 
                      FROM posts 
@@ -247,24 +198,23 @@ def get_user_posts(user_id):
         posts = c.fetchall()
         conn.close()
         return [dict(post) for post in posts]
-    except Exception as e:
-        print(f"Error getting user posts: {e}")
+    except:
         return []
 
 def add_comment(post_id, user_id, content):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
                   (post_id, user_id, content, datetime.now()))
         conn.commit()
         conn.close()
-    except Exception as e:
-        print(f"Error adding comment: {e}")
+    except:
+        pass
 
 def get_comments(post_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute('''SELECT comments.*, users.username, users.avatar 
                      FROM comments 
@@ -274,13 +224,12 @@ def get_comments(post_id):
         comments = c.fetchall()
         conn.close()
         return [dict(comment) for comment in comments]
-    except Exception as e:
-        print(f"Error getting comments: {e}")
+    except:
         return []
 
 def like_post(post_id, user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)", (post_id, user_id))
         c.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
@@ -292,7 +241,7 @@ def like_post(post_id, user_id):
 
 def has_liked_post(post_id, user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?", (post_id, user_id))
         result = c.fetchone()
@@ -305,7 +254,7 @@ def follow_user(follower_id, following_id):
     if follower_id == following_id:
         return False
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO followers (follower_id, following_id, created_at) VALUES (?, ?, ?)",
                   (follower_id, following_id, datetime.now()))
@@ -317,7 +266,7 @@ def follow_user(follower_id, following_id):
 
 def unfollow_user(follower_id, following_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("DELETE FROM followers WHERE follower_id = ? AND following_id = ?", 
                   (follower_id, following_id))
@@ -328,7 +277,7 @@ def unfollow_user(follower_id, following_id):
 
 def is_following(follower_id, following_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT id FROM followers WHERE follower_id = ? AND following_id = ?", 
                   (follower_id, following_id))
@@ -340,7 +289,7 @@ def is_following(follower_id, following_id):
 
 def get_followers_count(user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
         count = c.fetchone()[0]
@@ -351,7 +300,7 @@ def get_followers_count(user_id):
 
 def get_following_count(user_id):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM followers WHERE follower_id = ?", (user_id,))
         count = c.fetchone()[0]
@@ -362,7 +311,7 @@ def get_following_count(user_id):
 
 def search_users(query):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
                   (f'%{query}%', f'%{query}%'))
@@ -374,7 +323,7 @@ def search_users(query):
 
 def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender=None, avatar=None, banner=None):
     try:
-        conn = get_db_connection()
+        conn = get_db()
         c = conn.cursor()
         if full_name:
             c.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
@@ -390,11 +339,10 @@ def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender
             c.execute("UPDATE users SET banner = ? WHERE id = ?", (banner, user_id))
         conn.commit()
         conn.close()
-    except Exception as e:
-        print(f"Error updating profile: {e}")
+    except:
+        pass
 
 # ========== ДЕКОРАТОРЫ ==========
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -405,7 +353,6 @@ def login_required(f):
     return decorated_function
 
 # ========== МАРШРУТЫ ==========
-
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -490,16 +437,14 @@ def feed():
     liked_posts = [post['id'] for post in posts if has_liked_post(post['id'], session['user_id'])]
     user = get_user_by_id(session['user_id'])
     
-    for post in posts:
-        post['comments_count'] = len(get_comments(post['id']))
-    
     return render_template('feed.html', 
                          username=session['username'], 
                          posts=posts, 
                          liked_posts=liked_posts,
                          user_id=session['user_id'],
                          is_admin=session.get('is_admin', False),
-                         user_avatar=user['avatar'] if user else None)
+                         user_avatar=user['avatar'] if user else None,
+                         unread_count=0)
 
 @app.route('/profile/<int:user_id>')
 @login_required
@@ -514,9 +459,6 @@ def profile(user_id):
     is_following_user = is_following(session['user_id'], user_id) if session['user_id'] != user_id else False
     current_user = get_user_by_id(session['user_id'])
     
-    for post in posts:
-        post['comments_count'] = len(get_comments(post['id']))
-    
     return render_template('profile.html', 
                          profile_user=user,
                          posts=posts,
@@ -526,7 +468,8 @@ def profile(user_id):
                          current_user_id=session['user_id'],
                          is_admin=session.get('is_admin', False),
                          user_avatar=current_user['avatar'] if current_user else None,
-                         session=session)
+                         session=session,
+                         unread_count=0)
 
 @app.route('/update_profile', methods=['POST'])
 @login_required
@@ -616,7 +559,6 @@ def logout():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
-# ========== ЗАПУСК ==========
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
