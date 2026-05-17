@@ -2,56 +2,183 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Поиск - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/mobile.css">
+    <script>
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                   || window.innerWidth <= 768;
+        }
+        if (isMobile()) {
+            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
+        } else {
+            document.write('<link rel="stylesheet" href="/static/css/style.css">');
+            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
+        }
+    </script>
+    <style>
+        .search-container { max-width: 600px; margin: 80px auto 40px; padding: 20px; }
+        .search-header { margin-bottom: 24px; }
+        .search-header h1 { font-size: 28px; margin-bottom: 16px; }
+        .search-input {
+            width: 100%;
+            padding: 14px 20px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 40px;
+            color: white;
+            font-size: 16px;
+        }
+        .search-input:focus { outline: none; border-color: #667eea; }
+        .search-results { display: flex; flex-direction: column; gap: 12px; }
+        .search-result-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px;
+            background: rgba(25,35,50,0.6);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        .search-result-card:active { transform: scale(0.98); background: rgba(25,35,50,0.8); }
+        .search-result-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+        .search-result-info { flex: 1; }
+        .search-result-name { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .search-result-username { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+        .search-result-bio { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .chat-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .empty-results {
+            text-align: center;
+            padding: 60px;
+            background: rgba(25,35,50,0.6);
+            border-radius: 24px;
+        }
+        .bottom-nav { display: none; }
+        @media (max-width: 768px) {
+            .search-container { margin-top: 70px; padding: 16px; }
+            .bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(15,20,35,0.95);
+                backdrop-filter: blur(20px);
+                justify-content: space-around;
+                padding: 8px 16px 20px;
+                z-index: 1000;
+            }
+            .nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                text-decoration: none;
+                color: rgba(255,255,255,0.6);
+                padding: 8px 16px;
+                border-radius: 40px;
+            }
+            .nav-item.active { color: #667eea; background: rgba(102,126,234,0.15); }
+            .nav-item span:first-child { font-size: 24px; }
+            .nav-item span:last-child { font-size: 11px; }
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-content">
-            <a href="/feed" class="logo">✨ Connect</a>
-            <div class="nav-links">
-                <input type="text" class="search-input" placeholder="🔍 Поиск..." id="searchInput" 
-                       value="{{ query }}" onkeyup="if(event.key==='Enter') window.location.href='/search?q='+this.value">
-                <a href="/feed">🏠 Лента</a>
-                <a href="/profile/{{ session.user_id }}">👤 Профиль</a>
-                <a href="/logout">🚪 Выйти</a>
-            </div>
+    <div class="search-container">
+        <div class="search-header">
+            <h1>🔍 Поиск пользователей</h1>
+            <input type="text" class="search-input" id="searchInput" placeholder="Введите имя пользователя..." value="{{ query }}" onkeyup="searchUsers()">
         </div>
-    </nav>
-
-    <div class="search-results">
-        <h1 style="margin-bottom: 24px;">🔍 Результаты поиска: "{{ query }}"</h1>
         
-        {% if users %}
-            {% for user in users %}
-            <div class="search-result-card glass-card">
-                {% if user.avatar %}
-                    <img src="{{ user.avatar }}" class="search-result-avatar" alt="{{ user.username }}">
-                {% else %}
-                    <div class="avatar-placeholder" style="width: 56px; height: 56px; font-size: 24px;">
-                        {{ user.username[0].upper() }}
-                    </div>
-                {% endif %}
-                <div class="search-result-info">
-                    <div class="search-result-name">{{ user.full_name or user.username }}</div>
-                    <div class="search-result-username">@{{ user.username }}</div>
-                    {% if user.bio %}
-                        <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px;">{{ user.bio[:60] }}</div>
+        <div class="search-results" id="searchResults">
+            {% if users %}
+                {% for user in users %}
+                <div class="search-result-card">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar }}" class="search-result-avatar" alt="{{ user.username }}">
+                    {% else %}
+                        <div class="avatar-placeholder" style="width:56px;height:56px;font-size:24px;">{{ user.username[0].upper() }}</div>
                     {% endif %}
+                    <div class="search-result-info">
+                        <div class="search-result-name">
+                            {{ user.full_name or user.username }}
+                            {% if user.is_admin %}<span class="verified-badge" title="Администратор">✓</span>{% endif %}
+                        </div>
+                        <div class="search-result-username">@{{ user.username }}</div>
+                        {% if user.bio %}<div class="search-result-bio">{{ user.bio[:60] }}</div>{% endif %}
+                    </div>
+                    <a href="/chat/{{ user.id }}" class="chat-btn">💬 Написать</a>
                 </div>
-                <a href="/profile/{{ user.id }}" class="action-btn" style="padding: 8px 20px;">Перейти</a>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="glass-card" style="text-align: center; padding: 60px;">
-                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-                <h3>Пользователи не найдены</h3>
-                <p style="color: rgba(255,255,255,0.6); margin-top: 8px;">Попробуйте изменить поисковый запрос</p>
-            </div>
-        {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="empty-results">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                    <h3>Пользователи не найдены</h3>
+                    <p style="color: rgba(255,255,255,0.6); margin-top: 8px;">Попробуйте изменить поисковый запрос</p>
+                </div>
+            {% endif %}
+        </div>
     </div>
+    
+    <div class="bottom-nav">
+        <a href="/feed" class="nav-item"><span>🏠</span><span>Лента</span></a>
+        <a href="/search" class="nav-item active"><span>🔍</span><span>Поиск</span></a>
+        <a href="/chats" class="nav-item"><span>💬</span><span>Чаты</span></a>
+        <a href="/profile/{{ session.user_id }}" class="nav-item"><span>👤</span><span>Профиль</span></a>
+    </div>
+    
+    <script>
+        function searchUsers() {
+            const query = document.getElementById('searchInput').value;
+            if (query.length < 2) {
+                if (query.length === 0) location.reload();
+                return;
+            }
+            fetch(`/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const results = doc.querySelectorAll('.search-result-card');
+                    const container = document.getElementById('searchResults');
+                    if (results.length > 0) {
+                        container.innerHTML = '';
+                        results.forEach(result => container.appendChild(result.cloneNode(true)));
+                    } else {
+                        container.innerHTML = '<div class="empty-results"><div style="font-size:48px;">🔍</div><h3>Пользователи не найдены</h3><p style="color:rgba(255,255,255,0.6);margin-top:8px;">Попробуйте другой запрос</p></div>';
+                    }
+                });
+        }
+        
+        // Авто-поиск при загрузке если есть запрос
+        if (document.getElementById('searchInput').value) {
+            searchUsers();
+        }
+    </script>
 </body>
 </html>

@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, session, url_for, j
 import hashlib
 from werkzeug.utils import secure_filename
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, 'users.db')
@@ -208,7 +208,6 @@ def get_all_posts():
         result = []
         for post in posts:
             post_dict = dict(post)
-            # Конвертируем created_at в datetime если строка
             if isinstance(post_dict.get('created_at'), str):
                 try:
                     post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
@@ -223,7 +222,7 @@ def get_user_posts(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT posts.*, users.username, users.avatar, users.is_admin
+        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin
                      FROM posts 
                      JOIN users ON posts.user_id = users.id 
                      WHERE posts.user_id = ?
@@ -460,6 +459,28 @@ def get_total_posts():
         return count
     except:
         return 0
+
+def make_admin(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def remove_admin(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("UPDATE users SET is_admin = 0 WHERE id = ? AND username != 'taranka'", (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
 
 # ========== ДЕКОРАТОРЫ ==========
 def login_required(f):
@@ -707,6 +728,24 @@ def admin_delete_post(post_id):
         return jsonify({'success': True})
     return jsonify({'success': False})
 
+@app.route('/admin/make_admin/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_make_admin(user_id):
+    user = get_user_by_id(user_id)
+    if user and user['username'] != 'taranka':
+        if make_admin(user_id):
+            return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/admin/remove_admin/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_remove_admin(user_id):
+    user = get_user_by_id(user_id)
+    if user and user['username'] != 'taranka':
+        if remove_admin(user_id):
+            return jsonify({'success': True})
+    return jsonify({'success': False})
+
 @app.route('/chats')
 @login_required
 def chats():
@@ -730,6 +769,5 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 if __name__ == '__main__':
-    from datetime import timedelta
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
