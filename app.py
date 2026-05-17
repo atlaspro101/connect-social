@@ -31,6 +31,86 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (АВТОМАТИЧЕСКИ) ==========
+
+def init_db():
+    """Создает базу данных и таблицы при первом запуске"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    
+    # Проверяем существует ли таблица users
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    if not c.fetchone():
+        print("📦 Создание базы данных...")
+        
+        # Таблица пользователей
+        c.execute('''CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            full_name TEXT,
+            bio TEXT,
+            birthday TEXT,
+            gender TEXT,
+            avatar TEXT,
+            banner TEXT,
+            is_admin INTEGER DEFAULT 0,
+            last_seen TIMESTAMP,
+            created_at TIMESTAMP
+        )''')
+        
+        # Таблица постов
+        c.execute('''CREATE TABLE posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            content TEXT,
+            media_path TEXT,
+            media_type TEXT,
+            likes INTEGER DEFAULT 0,
+            created_at TIMESTAMP
+        )''')
+        
+        # Таблица комментариев
+        c.execute('''CREATE TABLE comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            user_id INTEGER,
+            content TEXT,
+            created_at TIMESTAMP
+        )''')
+        
+        # Таблица лайков
+        c.execute('''CREATE TABLE post_likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            user_id INTEGER,
+            UNIQUE(post_id, user_id)
+        )''')
+        
+        # Таблица подписчиков
+        c.execute('''CREATE TABLE followers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follower_id INTEGER,
+            following_id INTEGER,
+            created_at TIMESTAMP,
+            UNIQUE(follower_id, following_id)
+        )''')
+        
+        # Создаем админа
+        admin_pass = hash_password("fastyk26tyr")
+        c.execute('''INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) 
+                     VALUES (?, ?, ?, ?, ?, ?)''',
+                  ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
+        
+        conn.commit()
+        print("✅ База данных создана!")
+        print("👑 Админ создан: taranka / fastyk26tyr")
+    
+    conn.close()
+
+# Вызываем инициализацию БД при запуске
+init_db()
+
 # ========== ФУНКЦИИ БАЗЫ ДАННЫХ ==========
 
 def get_db_connection():
