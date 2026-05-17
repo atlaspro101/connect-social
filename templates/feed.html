@@ -89,8 +89,20 @@
             box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
         }
         
-        /* ПК стили */
-        .sidebar, .sidebar-toggle { display: block; }
+        /* ПК стили - только для ПК */
+        @media (min-width: 769px) {
+            .hamburger-btn, .hamburger-menu, .hamburger-overlay {
+                display: none !important;
+            }
+        }
+        
+        /* Мобильные стили - только для мобильных */
+        @media (max-width: 768px) {
+            .sidebar, .sidebar-toggle {
+                display: none !important;
+            }
+        }
+        
         .avatar-post {
             width: 48px;
             height: 48px;
@@ -156,7 +168,6 @@
         }
         
         @media (max-width: 768px) {
-            .sidebar, .sidebar-toggle { display: none; }
             .avatar-post { width: 44px; height: 44px; }
             .post-author-row { padding: 12px; }
             .post-text { padding: 0 12px 12px; font-size: 14px; }
@@ -166,7 +177,7 @@
     </style>
 </head>
 <body>
-    <!-- Гамбургер меню (мобильные) -->
+    <!-- ========== МОБИЛЬНОЕ ГАМБУРГЕР МЕНЮ (только для телефонов) ========== -->
     <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()">
         <span></span>
     </div>
@@ -181,7 +192,7 @@
                     <div class="avatar-placeholder" style="width:48px;height:48px;">{{ username[0].upper() }}</div>
                 {% endif %}
                 <div class="menu-user-info">
-                    <div class="menu-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}</div>
+                    <div class="menu-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div>
                     <div class="menu-status">● Онлайн</div>
                 </div>
             </div>
@@ -198,14 +209,14 @@
     </div>
     <div class="hamburger-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
     
-    <!-- ПК сайдбар -->
+    <!-- ========== ПК САЙДБАР (только для ПК) ========== -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">✨ Connect</div>
             <div class="sidebar-user">
                 {% if user_avatar %}<img src="{{ user_avatar }}" class="sidebar-avatar">{% else %}<div class="avatar-placeholder" style="width:48px;height:48px;">{{ username[0].upper() }}</div>{% endif %}
                 <div class="sidebar-user-info">
-                    <div class="sidebar-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}</div>
+                    <div class="sidebar-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div>
                     <div class="sidebar-user-status">● Онлайн</div>
                 </div>
             </div>
@@ -337,34 +348,41 @@
     </div>
     
     <script>
-        // Sidebar
+        // Sidebar для ПК
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const toggleBtn = document.getElementById('sidebarToggle');
             if (window.innerWidth > 768) {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                const toggleBtn = document.getElementById('sidebarToggle');
                 sidebar.classList.toggle('collapsed');
                 mainContent.classList.toggle('expanded');
                 toggleBtn.classList.toggle('collapsed');
                 localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
             }
         }
+        
+        // Загрузка состояния сайдбара для ПК
         if (window.innerWidth > 768 && localStorage.getItem('sidebarCollapsed') === 'true') {
             document.getElementById('sidebar').classList.add('collapsed');
             document.getElementById('mainContent').classList.add('expanded');
             document.getElementById('sidebarToggle').classList.add('collapsed');
         }
         
-        // Мобильное меню
+        // Мобильное меню (только для мобильных)
         function toggleMobileMenu() {
-            document.getElementById('mobileMenu').classList.toggle('open');
-            document.getElementById('menuOverlay').classList.toggle('active');
-            document.getElementById('hamburgerBtn').classList.toggle('open');
+            if (window.innerWidth <= 768) {
+                document.getElementById('mobileMenu').classList.toggle('open');
+                document.getElementById('menuOverlay').classList.toggle('active');
+                document.getElementById('hamburgerBtn').classList.toggle('open');
+            }
         }
+        
         function closeMobileMenu() {
-            document.getElementById('mobileMenu').classList.remove('open');
-            document.getElementById('menuOverlay').classList.remove('active');
-            document.getElementById('hamburgerBtn').classList.remove('open');
+            if (window.innerWidth <= 768) {
+                document.getElementById('mobileMenu').classList.remove('open');
+                document.getElementById('menuOverlay').classList.remove('active');
+                document.getElementById('hamburgerBtn').classList.remove('open');
+            }
         }
         
         // Вкладки ленты
@@ -388,9 +406,16 @@
             document.getElementById('premiumModal').style.display = 'none';
         }
         function buyPremium() {
-            alert('⚔️ Спасибо за покупку Connect Premium!\nВаш ник теперь будет переливаться и появится иконка меча!');
-            closePremiumModal();
-            location.reload();
+            fetch('/buy_premium', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('⚔️ Поздравляем! Вы стали Premium пользователем!');
+                        location.reload();
+                    } else {
+                        alert('Ошибка при покупке Premium');
+                    }
+                });
         }
         
         document.getElementById('pcPremiumBtn')?.addEventListener('click', openPremiumModal);
@@ -481,6 +506,13 @@
         });
         
         document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeSearchModal(); closePremiumModal(); } });
+        
+        // При изменении размера окна - закрываем мобильное меню
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+        });
     </script>
 </body>
 </html>
