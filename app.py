@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, redirect, session, url_for, jsonify
+from flask import Flask, render_template, request, redirect, session, url_for, jsonify, send_from_directory
 import hashlib
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -32,86 +32,104 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Функции для работы с БД
+# ========== ФУНКЦИИ БАЗЫ ДАННЫХ ==========
+
 def init_db():
+    """Создает все таблицы и админа"""
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
     # Таблица пользователей
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  username TEXT UNIQUE NOT NULL,
-                  password TEXT NOT NULL,
-                  full_name TEXT,
-                  bio TEXT,
-                  birthday TEXT,
-                  gender TEXT,
-                  avatar TEXT,
-                  banner TEXT,
-                  is_admin INTEGER DEFAULT 0,
-                  last_seen TIMESTAMP,
-                  created_at TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        full_name TEXT,
+        bio TEXT,
+        birthday TEXT,
+        gender TEXT,
+        avatar TEXT,
+        banner TEXT,
+        is_admin INTEGER DEFAULT 0,
+        last_seen TIMESTAMP,
+        created_at TIMESTAMP
+    )''')
     
     # Таблица постов
-    c.execute('''CREATE TABLE IF NOT EXISTS posts
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_id INTEGER,
-                  content TEXT,
-                  media_path TEXT,
-                  media_type TEXT,
-                  likes INTEGER DEFAULT 0,
-                  created_at TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        content TEXT,
+        media_path TEXT,
+        media_type TEXT,
+        likes INTEGER DEFAULT 0,
+        created_at TIMESTAMP
+    )''')
     
     # Таблица комментариев
-    c.execute('''CREATE TABLE IF NOT EXISTS comments
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  post_id INTEGER,
-                  user_id INTEGER,
-                  content TEXT,
-                  created_at TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER,
+        user_id INTEGER,
+        content TEXT,
+        created_at TIMESTAMP
+    )''')
     
     # Таблица лайков
-    c.execute('''CREATE TABLE IF NOT EXISTS post_likes
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  post_id INTEGER,
-                  user_id INTEGER,
-                  UNIQUE(post_id, user_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS post_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER,
+        user_id INTEGER,
+        UNIQUE(post_id, user_id)
+    )''')
     
     # Таблица подписчиков
-    c.execute('''CREATE TABLE IF NOT EXISTS followers
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  follower_id INTEGER,
-                  following_id INTEGER,
-                  created_at TIMESTAMP,
-                  UNIQUE(follower_id, following_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS followers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER,
+        following_id INTEGER,
+        created_at TIMESTAMP,
+        UNIQUE(follower_id, following_id)
+    )''')
     
-    # Создаем админа
+    conn.commit()
+    
+    # Создаем админа если его нет
     admin_pass = hash_password("fastyk26tyr")
-    try:
+    c.execute("SELECT id FROM users WHERE username = 'taranka'")
+    if not c.fetchone():
         c.execute("INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
         print("✓ Админ создан: taranka / fastyk26tyr")
-    except:
-        pass
     
     conn.commit()
     conn.close()
+    print("✓ База данных инициализирована")
+
+def get_db():
+    """Возвращает соединение с БД"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+# ========== ОСНОВНЫЕ ФУНКЦИИ ==========
 
 def add_user(username, password, full_name, birthday, gender, bio, avatar):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     try:
         c.execute("INSERT INTO users (username, password, full_name, birthday, gender, bio, avatar, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                   (username, password, full_name, birthday, gender, bio, avatar, datetime.now(), datetime.now()))
         conn.commit()
         return True
-    except:
+    except Exception as e:
+        print(f"Error adding user: {e}")
         return False
     finally:
         conn.close()
 
 def get_user(username, password):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin FROM users WHERE username=? AND password=?", 
               (username, password))
@@ -120,8 +138,7 @@ def get_user(username, password):
     return user
 
 def get_user_by_id(user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, created_at, last_seen FROM users WHERE id=?", (user_id,))
     user = c.fetchone()
@@ -129,14 +146,14 @@ def get_user_by_id(user_id):
     return dict(user) if user else None
 
 def update_last_seen(user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("UPDATE users SET last_seen = ? WHERE id = ?", (datetime.now(), user_id))
     conn.commit()
     conn.close()
 
 def add_post(user_id, content, media_path=None, media_type=None):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("INSERT INTO posts (user_id, content, media_path, media_type, created_at) VALUES (?, ?, ?, ?, ?)",
               (user_id, content, media_path, media_type, datetime.now()))
@@ -146,8 +163,7 @@ def add_post(user_id, content, media_path=None, media_type=None):
     return post_id
 
 def get_all_posts():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
                  FROM posts 
@@ -155,16 +171,10 @@ def get_all_posts():
                  ORDER BY posts.created_at DESC''')
     posts = c.fetchall()
     conn.close()
-    
-    result = []
-    for post in posts:
-        post_dict = dict(post)
-        result.append(post_dict)
-    return result
+    return [dict(post) for post in posts]
 
 def get_user_posts(user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT posts.*, users.username, users.avatar 
                  FROM posts 
@@ -176,7 +186,7 @@ def get_user_posts(user_id):
     return [dict(post) for post in posts]
 
 def add_comment(post_id, user_id, content):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
               (post_id, user_id, content, datetime.now()))
@@ -184,8 +194,7 @@ def add_comment(post_id, user_id, content):
     conn.close()
 
 def get_comments(post_id):
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     c = conn.cursor()
     c.execute('''SELECT comments.*, users.username, users.avatar 
                  FROM comments 
@@ -197,7 +206,7 @@ def get_comments(post_id):
     return [dict(comment) for comment in comments]
 
 def like_post(post_id, user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     try:
         c.execute("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)", (post_id, user_id))
@@ -210,7 +219,7 @@ def like_post(post_id, user_id):
         conn.close()
 
 def has_liked_post(post_id, user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?", (post_id, user_id))
     result = c.fetchone()
@@ -220,7 +229,7 @@ def has_liked_post(post_id, user_id):
 def follow_user(follower_id, following_id):
     if follower_id == following_id:
         return False
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     try:
         c.execute("INSERT INTO followers (follower_id, following_id, created_at) VALUES (?, ?, ?)",
@@ -233,7 +242,7 @@ def follow_user(follower_id, following_id):
         conn.close()
 
 def unfollow_user(follower_id, following_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("DELETE FROM followers WHERE follower_id = ? AND following_id = ?", 
               (follower_id, following_id))
@@ -241,7 +250,7 @@ def unfollow_user(follower_id, following_id):
     conn.close()
 
 def is_following(follower_id, following_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT id FROM followers WHERE follower_id = ? AND following_id = ?", 
               (follower_id, following_id))
@@ -250,7 +259,7 @@ def is_following(follower_id, following_id):
     return result is not None
 
 def get_followers_count(user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
     count = c.fetchone()[0]
@@ -258,7 +267,7 @@ def get_followers_count(user_id):
     return count
 
 def get_following_count(user_id):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT COUNT(*) FROM followers WHERE follower_id = ?", (user_id,))
     count = c.fetchone()[0]
@@ -266,8 +275,7 @@ def get_following_count(user_id):
     return count
 
 def search_users(query):
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
               (f'%{query}%', f'%{query}%'))
@@ -276,7 +284,7 @@ def search_users(query):
     return [dict(user) for user in users]
 
 def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender=None, avatar=None, banner=None):
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = get_db()
     c = conn.cursor()
     if full_name:
         c.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
@@ -292,6 +300,8 @@ def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender
         c.execute("UPDATE users SET banner = ? WHERE id = ?", (banner, user_id))
     conn.commit()
     conn.close()
+
+# ========== ДЕКОРАТОРЫ ==========
 
 def login_required(f):
     @wraps(f)
@@ -313,7 +323,8 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Маршруты
+# ========== МАРШРУТЫ ==========
+
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -353,10 +364,10 @@ def login():
         
         user = get_user(username, password)
         if user:
-            session['user_id'] = user[0]
-            session['username'] = user[1]
-            session['is_admin'] = user[8] if len(user) > 8 else 0
-            update_last_seen(user[0])
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['is_admin'] = user['is_admin'] if user['is_admin'] else 0
+            update_last_seen(user['id'])
             return redirect(url_for('feed'))
         else:
             return "Invalid credentials!"
@@ -524,7 +535,8 @@ def logout():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
+# ========== ЗАПУСК ==========
 if __name__ == '__main__':
-    init_db()
+    init_db()  # ВАЖНО: создаем таблицы перед запуском
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
