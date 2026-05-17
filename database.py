@@ -7,118 +7,116 @@ def init_db():
     c = conn.cursor()
     
     # Таблица пользователей
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  username TEXT UNIQUE NOT NULL,
-                  password TEXT NOT NULL,
-                  full_name TEXT,
-                  bio TEXT,
-                  birthday TEXT,
-                  gender TEXT,
-                  avatar TEXT,
-                  banner TEXT,
-                  is_admin INTEGER DEFAULT 0,
-                  is_banned INTEGER DEFAULT 0,
-                  ban_reason TEXT,
-                  ban_until TIMESTAMP,
-                  last_seen TIMESTAMP,
-                  created_at TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        full_name TEXT,
+        bio TEXT,
+        birthday TEXT,
+        gender TEXT,
+        avatar TEXT,
+        banner TEXT,
+        is_admin INTEGER DEFAULT 0,
+        is_premium INTEGER DEFAULT 0,
+        last_seen TIMESTAMP,
+        created_at TIMESTAMP
+    )''')
     
     # Таблица подписчиков
-    c.execute('''CREATE TABLE IF NOT EXISTS followers
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  follower_id INTEGER,
-                  following_id INTEGER,
-                  created_at TIMESTAMP,
-                  UNIQUE(follower_id, following_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS followers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER,
+        following_id INTEGER,
+        created_at TIMESTAMP,
+        UNIQUE(follower_id, following_id)
+    )''')
     
-    # Таблица постов с просмотрами
-    c.execute('''CREATE TABLE IF NOT EXISTS posts
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user_id INTEGER,
-                  content TEXT,
-                  media_path TEXT,
-                  media_type TEXT,
-                  likes INTEGER DEFAULT 0,
-                  views INTEGER DEFAULT 0,
-                  created_at TIMESTAMP,
-                  FOREIGN KEY(user_id) REFERENCES users(id))''')
-    
-    # Таблица просмотров постов
-    c.execute('''CREATE TABLE IF NOT EXISTS post_views
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  post_id INTEGER,
-                  user_id INTEGER,
-                  viewed_at TIMESTAMP,
-                  UNIQUE(post_id, user_id))''')
+    # Таблица постов
+    c.execute('''CREATE TABLE IF NOT EXISTS posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        content TEXT,
+        media_path TEXT,
+        media_type TEXT,
+        likes INTEGER DEFAULT 0,
+        created_at TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
     
     # Таблица комментариев
-    c.execute('''CREATE TABLE IF NOT EXISTS comments
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  post_id INTEGER,
-                  user_id INTEGER,
-                  content TEXT,
-                  voice_path TEXT,
-                  likes INTEGER DEFAULT 0,
-                  created_at TIMESTAMP,
-                  FOREIGN KEY(post_id) REFERENCES posts(id),
-                  FOREIGN KEY(user_id) REFERENCES users(id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER,
+        user_id INTEGER,
+        content TEXT,
+        created_at TIMESTAMP,
+        FOREIGN KEY(post_id) REFERENCES posts(id),
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
     
-    # Таблица лайков
-    c.execute('''CREATE TABLE IF NOT EXISTS post_likes
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  post_id INTEGER,
-                  user_id INTEGER,
-                  UNIQUE(post_id, user_id))''')
+    # Таблица лайков на постах
+    c.execute('''CREATE TABLE IF NOT EXISTS post_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id INTEGER,
+        user_id INTEGER,
+        UNIQUE(post_id, user_id)
+    )''')
     
-    c.execute('''CREATE TABLE IF NOT EXISTS comment_likes
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  comment_id INTEGER,
-                  user_id INTEGER,
-                  UNIQUE(comment_id, user_id))''')
+    # Таблица лайков на комментариях
+    c.execute('''CREATE TABLE IF NOT EXISTS comment_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        comment_id INTEGER,
+        user_id INTEGER,
+        UNIQUE(comment_id, user_id)
+    )''')
     
     # Таблица банов
-    c.execute('''CREATE TABLE IF NOT EXISTS bans
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  admin_id INTEGER,
-                  user_id INTEGER,
-                  reason TEXT,
-                  ban_until TIMESTAMP,
-                  created_at TIMESTAMP,
-                  FOREIGN KEY(admin_id) REFERENCES users(id),
-                  FOREIGN KEY(user_id) REFERENCES users(id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS bans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER,
+        user_id INTEGER,
+        reason TEXT,
+        ban_until TIMESTAMP,
+        created_at TIMESTAMP,
+        FOREIGN KEY(admin_id) REFERENCES users(id),
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
     
     # Таблица чатов
-    c.execute('''CREATE TABLE IF NOT EXISTS chats
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  user1_id INTEGER,
-                  user2_id INTEGER,
-                  created_at TIMESTAMP,
-                  UNIQUE(user1_id, user2_id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS chats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user1_id INTEGER,
+        user2_id INTEGER,
+        created_at TIMESTAMP,
+        UNIQUE(user1_id, user2_id)
+    )''')
     
     # Таблица сообщений
-    c.execute('''CREATE TABLE IF NOT EXISTS messages
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  chat_id INTEGER,
-                  sender_id INTEGER,
-                  receiver_id INTEGER,
-                  message TEXT,
-                  media_path TEXT,
-                  is_read INTEGER DEFAULT 0,
-                  created_at TIMESTAMP,
-                  FOREIGN KEY(chat_id) REFERENCES chats(id),
-                  FOREIGN KEY(sender_id) REFERENCES users(id),
-                  FOREIGN KEY(receiver_id) REFERENCES users(id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id INTEGER,
+        sender_id INTEGER,
+        receiver_id INTEGER,
+        message TEXT,
+        media_path TEXT,
+        is_read INTEGER DEFAULT 0,
+        created_at TIMESTAMP,
+        FOREIGN KEY(chat_id) REFERENCES chats(id),
+        FOREIGN KEY(sender_id) REFERENCES users(id),
+        FOREIGN KEY(receiver_id) REFERENCES users(id)
+    )''')
     
     conn.commit()
     
     # Создаем админа
     admin_pass = hashlib.sha256("fastyk26tyr".encode()).hexdigest()
-    c.execute("SELECT id FROM users WHERE username = 'taranka'")
-    if not c.fetchone():
+    try:
         c.execute("INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
         print("✓ Админ создан: taranka / fastyk26tyr")
+    except:
+        pass
     
     conn.commit()
     conn.close()
@@ -142,23 +140,17 @@ def add_user(username, password, full_name, birthday, gender, bio, avatar):
 def get_user(username, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_banned, ban_reason, ban_until FROM users WHERE username=? AND password=?", 
+    c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium FROM users WHERE username=? AND password=?", 
               (username, password))
     user = c.fetchone()
     conn.close()
-    
-    if user and user[9] == 1:
-        if user[11]:
-            ban_until = datetime.strptime(user[11], '%Y-%m-%d %H:%M:%S.%f')
-            if ban_until > datetime.now():
-                return {'banned': True, 'reason': user[10], 'until': ban_until}
     return user
 
 def get_user_by_id(user_id):
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_banned, ban_reason, ban_until, created_at, last_seen FROM users WHERE id=?", (user_id,))
+    c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, created_at, last_seen FROM users WHERE id=?", (user_id,))
     user = c.fetchone()
     conn.close()
     return dict(user) if user else None
@@ -202,7 +194,7 @@ def get_all_posts():
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
+    c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin, users.is_premium
                  FROM posts 
                  JOIN users ON posts.user_id = users.id 
                  ORDER BY posts.created_at DESC''')
@@ -221,7 +213,7 @@ def get_user_posts(user_id):
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('''SELECT posts.*, users.username, users.avatar 
+    c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin, users.is_premium
                  FROM posts 
                  JOIN users ON posts.user_id = users.id 
                  WHERE posts.user_id = ?
@@ -237,7 +229,7 @@ def get_user_posts(user_id):
         result.append(post_dict)
     return result
 
-def get_post(post_id, user_id=None):
+def get_post(post_id):
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -246,17 +238,6 @@ def get_post(post_id, user_id=None):
                  JOIN users ON posts.user_id = users.id 
                  WHERE posts.id = ?''', (post_id,))
     post = c.fetchone()
-    
-    # Добавляем просмотр
-    if post and user_id:
-        try:
-            c.execute("INSERT INTO post_views (post_id, user_id, viewed_at) VALUES (?, ?, ?)",
-                      (post_id, user_id, datetime.now()))
-            c.execute("UPDATE posts SET views = views + 1 WHERE id = ?", (post_id,))
-            conn.commit()
-        except:
-            pass
-    
     conn.close()
     if post:
         post_dict = dict(post)
@@ -265,19 +246,11 @@ def get_post(post_id, user_id=None):
         return post_dict
     return None
 
-def get_post_views_count(post_id):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute("SELECT views FROM posts WHERE id = ?", (post_id,))
-    result = c.fetchone()
-    conn.close()
-    return result[0] if result else 0
-
 def add_comment(post_id, user_id, content, voice_path=None):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute("INSERT INTO comments (post_id, user_id, content, voice_path, created_at) VALUES (?, ?, ?, ?, ?)",
-              (post_id, user_id, content, voice_path, datetime.now()))
+    c.execute("INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
+              (post_id, user_id, content, datetime.now()))
     conn.commit()
     conn.close()
 
@@ -285,7 +258,7 @@ def get_comments(post_id):
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('''SELECT comments.*, users.username, users.avatar 
+    c.execute('''SELECT comments.*, users.username, users.avatar, users.is_admin, users.is_premium
                  FROM comments 
                  JOIN users ON comments.user_id = users.id 
                  WHERE comments.post_id = ? 
@@ -383,7 +356,7 @@ def search_users(query):
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
+    c.execute("SELECT id, username, full_name, bio, avatar, is_admin, is_premium FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
               (f'%{query}%', f'%{query}%'))
     users = c.fetchall()
     conn.close()
@@ -452,7 +425,7 @@ def get_all_users():
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, is_admin, is_banned, ban_reason, created_at, last_seen FROM users ORDER BY created_at DESC")
+    c.execute("SELECT id, username, full_name, is_admin, is_premium, created_at, last_seen FROM users ORDER BY created_at DESC")
     users = c.fetchall()
     conn.close()
     return [dict(user) for user in users]
@@ -470,13 +443,33 @@ def is_user_banned(user_id):
                 return {'banned': True, 'reason': result[1], 'until': ban_until}
     return {'banned': False}
 
-# ========== ЧАТЫ ==========
+def make_admin(user_id):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+def remove_admin(user_id):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET is_admin = 0 WHERE id = ? AND username != 'taranka'", (user_id,))
+    conn.commit()
+    conn.close()
+
+def make_premium(user_id):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET is_premium = 1 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+# ========== ФУНКЦИИ ДЛЯ ЧАТОВ ==========
 
 def get_or_create_chat(user1_id, user2_id):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     
-    # Проверяем существует ли чат
     c.execute("SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)",
               (user1_id, user2_id, user2_id, user1_id))
     chat = c.fetchone()
@@ -485,7 +478,6 @@ def get_or_create_chat(user1_id, user2_id):
         conn.close()
         return chat[0]
     
-    # Создаем новый чат
     c.execute("INSERT INTO chats (user1_id, user2_id, created_at) VALUES (?, ?, ?)",
               (user1_id, user2_id, datetime.now()))
     chat_id = c.lastrowid
@@ -516,9 +508,6 @@ def get_messages(user_id, other_user_id, limit=50):
                  ORDER BY messages.created_at ASC LIMIT ?''', (chat_id, limit))
     messages = c.fetchall()
     conn.close()
-    
-    # Отмечаем сообщения как прочитанные
-    mark_messages_as_read(chat_id, user_id)
     
     result = []
     for msg in messages:
@@ -567,18 +556,4 @@ def get_user_chats(user_id):
                  ORDER BY last_message_time DESC''', (user_id, user_id, user_id, user_id))
     chats = c.fetchall()
     conn.close()
-    
-    result = []
-    for chat in chats:
-        chat_dict = dict(chat)
-        # Преобразуем строку в datetime если нужно
-        if chat_dict.get('last_message_time') and isinstance(chat_dict['last_message_time'], str):
-            try:
-                chat_dict['last_message_time'] = datetime.strptime(chat_dict['last_message_time'], '%Y-%m-%d %H:%M:%S.%f')
-            except:
-                try:
-                    chat_dict['last_message_time'] = datetime.strptime(chat_dict['last_message_time'], '%Y-%m-%d %H:%M:%S')
-                except:
-                    chat_dict['last_message_time'] = None
-        result.append(chat_dict)
-    return result
+    return [dict(chat) for chat in chats]

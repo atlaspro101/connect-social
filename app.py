@@ -85,6 +85,7 @@ def init_db():
             avatar TEXT,
             banner TEXT,
             is_admin INTEGER DEFAULT 0,
+            is_premium INTEGER DEFAULT 0,
             last_seen TIMESTAMP,
             created_at TIMESTAMP
         )''')
@@ -122,11 +123,19 @@ def init_db():
             UNIQUE(follower_id, following_id)
         )''')
         
+        # Создаем админа
         admin_pass = hash_password("fastyk26tyr")
         c.execute('''INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) 
                      VALUES (?, ?, ?, ?, ?, ?)''',
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
         conn.commit()
+    
+    # Добавляем колонку is_premium если её нет
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
+        conn.commit()
+    except:
+        pass
     
     conn.close()
 
@@ -154,7 +163,7 @@ def get_user(username, password):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin FROM users WHERE username=? AND password=?", 
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium FROM users WHERE username=? AND password=?", 
                   (username, password))
         user = c.fetchone()
         conn.close()
@@ -166,7 +175,7 @@ def get_user_by_id(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, created_at, last_seen FROM users WHERE id=?", (user_id,))
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, created_at, last_seen FROM users WHERE id=?", (user_id,))
         user = c.fetchone()
         conn.close()
         return user
@@ -199,7 +208,7 @@ def get_all_posts():
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin
+        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin, users.is_premium
                      FROM posts 
                      JOIN users ON posts.user_id = users.id 
                      ORDER BY posts.created_at DESC''')
@@ -222,7 +231,7 @@ def get_user_posts(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin
+        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin, users.is_premium
                      FROM posts 
                      JOIN users ON posts.user_id = users.id 
                      WHERE posts.user_id = ?
@@ -257,7 +266,7 @@ def get_comments(post_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT comments.*, users.username, users.avatar, users.is_admin
+        c.execute('''SELECT comments.*, users.username, users.avatar, users.is_admin, users.is_premium
                      FROM comments 
                      JOIN users ON comments.user_id = users.id 
                      WHERE comments.post_id = ? 
@@ -363,7 +372,7 @@ def search_users(query):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, is_admin FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
+        c.execute("SELECT id, username, full_name, bio, avatar, is_admin, is_premium FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
                   (f'%{query}%', f'%{query}%'))
         users = c.fetchall()
         conn.close()
@@ -407,7 +416,7 @@ def get_all_users():
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, is_admin, created_at, last_seen FROM users ORDER BY created_at DESC")
+        c.execute("SELECT id, username, full_name, is_admin, is_premium, created_at, last_seen FROM users ORDER BY created_at DESC")
         users = c.fetchall()
         conn.close()
         return [dict(user) for user in users]
@@ -482,6 +491,17 @@ def remove_admin(user_id):
     except:
         return False
 
+def make_premium(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("UPDATE users SET is_premium = 1 WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
 # ========== ДЕКОРАТОРЫ ==========
 def login_required(f):
     @wraps(f)
@@ -546,6 +566,7 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
+            session['is_premium'] = user['is_premium'] if len(user) > 9 else 0
             update_last_seen(user['id'])
             return redirect(url_for('feed'))
         else:
@@ -594,6 +615,7 @@ def feed():
                          liked_posts=liked_posts,
                          user_id=session['user_id'],
                          is_admin=session.get('is_admin', False),
+                         is_premium=session.get('is_premium', False),
                          user_avatar=user['avatar'] if user else None,
                          unread_count=0)
 
@@ -618,6 +640,7 @@ def profile(user_id):
                          is_following=is_following_user,
                          current_user_id=session['user_id'],
                          is_admin=session.get('is_admin', False),
+                         is_premium=session.get('is_premium', False),
                          user_avatar=current_user['avatar'] if current_user else None,
                          session=session,
                          unread_count=0)
@@ -746,10 +769,18 @@ def admin_remove_admin(user_id):
             return jsonify({'success': True})
     return jsonify({'success': False})
 
+@app.route('/buy_premium', methods=['POST'])
+@login_required
+def buy_premium():
+    if make_premium(session['user_id']):
+        session['is_premium'] = 1
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
 @app.route('/chats')
 @login_required
 def chats():
-    return render_template('chats.html', username=session['username'], unread_count=0, user_id=session['user_id'])
+    return render_template('chats.html', username=session['username'], unread_count=0, user_id=session['user_id'], is_admin=session.get('is_admin', False), is_premium=session.get('is_premium', False))
 
 @app.route('/chat/<int:user_id>')
 @login_required
@@ -769,5 +800,6 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 if __name__ == '__main__':
+    from datetime import timedelta
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
