@@ -17,6 +17,7 @@
         }
     </script>
     <style>
+        /* Общие стили */
         .drop-zone {
             border: 2px dashed rgba(255, 255, 255, 0.3);
             border-radius: 12px;
@@ -50,9 +51,117 @@
             cursor: pointer;
             font-size: 12px;
         }
+        
+        /* Premium стили */
+        .premium-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 6px;
+            font-size: 16px;
+        }
+        .premium-nick {
+            background: linear-gradient(90deg, #ff0000, #ffffff, #ff0000, #ffffff, #ff0000);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: premiumGlow 2s linear infinite;
+            font-weight: 800;
+        }
+        @keyframes premiumGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        .premium-btn {
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-left: 10px;
+        }
+        .premium-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
+        }
+        
+        /* ПК стили */
         .sidebar, .sidebar-toggle { display: block; }
+        .avatar-post {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .post-author-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+        .post-author-info {
+            flex: 1;
+        }
+        .post-author-name-link {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .post-author-username {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .post-time {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .post-text {
+            padding: 0 16px 16px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        .post-media {
+            margin: 0;
+        }
+        .post-media img {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+        }
+        .post-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .post-stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .post-stat.liked {
+            color: #ff4757;
+        }
+        
         @media (max-width: 768px) {
             .sidebar, .sidebar-toggle { display: none; }
+            .avatar-post { width: 44px; height: 44px; }
+            .post-author-row { padding: 12px; }
+            .post-text { padding: 0 12px 12px; font-size: 14px; }
+            .post-stats { gap: 12px; padding: 10px 12px; }
+            .post-stat { padding: 4px 8px; font-size: 12px; }
         }
     </style>
 </head>
@@ -83,6 +192,7 @@
             <a href="/chats" class="menu-item">💬 Сообщения</a>
             <a href="#" class="menu-item" id="mobileSearchBtn">🔍 Поиск</a>
             {% if is_admin %}<a href="/admin" class="menu-item">👑 Админ панель</a>{% endif %}
+            <button class="menu-item" id="mobilePremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
             <a href="/logout" class="menu-item" style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;">🚪 Выйти</a>
         </div>
     </div>
@@ -106,6 +216,7 @@
             <a href="/chats" class="sidebar-item">💬 Сообщения</a>
             <a href="#" class="sidebar-item" id="pcSearchBtn">🔍 Поиск</a>
             {% if is_admin %}<a href="/admin" class="sidebar-item">👑 Админ панель</a>{% endif %}
+            <button class="sidebar-item" id="pcPremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:15px;">⚔️ Connect Premium</button>
             <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;"><a href="/logout" class="sidebar-item">🚪 Выйти</a></div>
         </div>
     </div>
@@ -116,7 +227,7 @@
     
     <div class="main-content" id="mainContent">
         <div class="feed-container">
-            <!-- Вкладки ленты - оставил только "Для вас" и "Подписки" -->
+            <!-- Вкладки ленты -->
             <div class="feed-tabs">
                 <button class="feed-tab active" data-tab="for-you" onclick="switchFeedTab('for-you')">Для вас</button>
                 <button class="feed-tab" data-tab="subscriptions" onclick="switchFeedTab('subscriptions')">Подписки</button>
@@ -139,22 +250,25 @@
             <div id="forYouTab">
                 {% for post in posts %}
                 <div class="post-card" id="post-{{ post.id }}">
-                    <div class="post-header">
+                    <div class="post-author-row">
                         {% if post.avatar %}
-                            <img src="{{ post.avatar }}" class="avatar" alt="{{ post.username }}">
+                            <img src="{{ post.avatar }}" class="avatar-post" alt="{{ post.username }}">
                         {% else %}
-                            <div class="avatar-placeholder">{{ post.username[0].upper() }}</div>
+                            <div class="avatar-placeholder" style="width:48px;height:48px;">{{ post.username[0].upper() }}</div>
                         {% endif %}
-                        <div style="flex:1">
+                        <div class="post-author-info">
                             <div class="post-author-name">
-                                <a href="/profile/{{ post.user_id }}" style="color:white;text-decoration:none;">{{ post.full_name or post.username }}</a>
+                                <a href="/profile/{{ post.user_id }}" class="post-author-name-link {% if post.is_premium %}premium-nick{% endif %}">
+                                    {{ post.full_name or post.username }}
+                                </a>
                                 {% if post.is_admin %}<span class="verified-badge">✓</span>{% endif %}
+                                {% if post.is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
                             </div>
                             <div class="post-author-username">@{{ post.username }}</div>
                             <div class="post-time">{{ post.created_at|format_time }}</div>
                         </div>
                     </div>
-                    <div class="post-content">{{ post.content }}</div>
+                    <div class="post-text">{{ post.content }}</div>
                     {% if post.media_path %}
                         {% if post.media_type == 'image' or post.media_type == 'gif' %}
                             <div class="post-media" onclick="openLightbox('{{ post.media_path }}')"><img src="{{ post.media_path }}" alt="Post media"></div>
@@ -162,10 +276,10 @@
                             <div style="padding:12px;"><audio controls style="width:100%;"><source src="{{ post.media_path }}" type="audio/mpeg"></audio></div>
                         {% endif %}
                     {% endif %}
-                    <div class="post-actions">
-                        <button class="action-btn like-btn {% if post.id in liked_posts %}liked{% endif %}" onclick="toggleLike(this, {{ post.id }})">❤️ <span class="likes-count">{{ post.likes }}</span></button>
-                        <a href="/post/{{ post.id }}" class="action-btn">💬 Комментировать</a>
-                        <button class="action-btn" onclick="sharePost({{ post.id }})">📤 Поделиться</button>
+                    <div class="post-stats">
+                        <button class="post-stat like-btn {% if post.id in liked_posts %}liked{% endif %}" onclick="toggleLike(this, {{ post.id }})">❤️ <span class="likes-count">{{ post.likes }}</span></button>
+                        <a href="/post/{{ post.id }}" class="post-stat">💬 Комментировать</a>
+                        <button class="post-stat" onclick="sharePost({{ post.id }})">📤 Поделиться</button>
                     </div>
                 </div>
                 {% else %}
@@ -177,7 +291,7 @@
                 {% endfor %}
             </div>
             
-            <!-- Посты "Подписки" (люди на которых вы подписаны) -->
+            <!-- Посты "Подписки" -->
             <div id="subscriptionsTab" style="display:none;">
                 <div style="text-align:center;padding:60px;background:rgba(25,35,50,0.6);border-radius:24px;">
                     <div style="font-size:48px;">👥</div>
@@ -185,6 +299,24 @@
                     <p style="color:rgba(255,255,255,0.6);margin-top:8px;">Здесь будут посты людей, на которых вы подписаны</p>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно Premium -->
+    <div id="premiumModal" class="modal" style="display:none;">
+        <div class="modal-content" style="text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">⚔️</div>
+            <h2>Connect Premium</h2>
+            <p style="margin:16px 0;color:rgba(255,255,255,0.8);">Купите Premium и получите:</p>
+            <ul style="text-align:left;margin:16px 0;padding-left:20px;color:rgba(255,255,255,0.7);">
+                <li>✨ Красивое переливание ника</li>
+                <li>⚔️ Иконка красного меча рядом с ником</li>
+                <li>🔥 Приоритет в поддержке</li>
+                <li>💎 Эксклюзивные эмодзи в комментариях</li>
+            </ul>
+            <div style="font-size:32px;font-weight:bold;margin:20px 0;color:#ff4757;">199 ₽</div>
+            <button class="modal-save" onclick="buyPremium()" style="width:100%;">💎 Купить Premium</button>
+            <button class="modal-cancel" onclick="closePremiumModal()" style="width:100%;margin-top:10px;">Отмена</button>
         </div>
     </div>
     
@@ -247,6 +379,22 @@
                 document.getElementById('subscriptionsTab').style.display = 'block';
             }
         }
+        
+        // Premium
+        function openPremiumModal() {
+            document.getElementById('premiumModal').style.display = 'flex';
+        }
+        function closePremiumModal() {
+            document.getElementById('premiumModal').style.display = 'none';
+        }
+        function buyPremium() {
+            alert('⚔️ Спасибо за покупку Connect Premium!\nВаш ник теперь будет переливаться и появится иконка меча!');
+            closePremiumModal();
+            location.reload();
+        }
+        
+        document.getElementById('pcPremiumBtn')?.addEventListener('click', openPremiumModal);
+        document.getElementById('mobilePremiumBtn')?.addEventListener('click', openPremiumModal);
         
         function toggleLike(btn, postId) {
             fetch(`/like_post/${postId}`, { method: 'POST' }).then(r=>r.json()).then(data => {
@@ -332,7 +480,7 @@
             }
         });
         
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeSearchModal(); } });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeSearchModal(); closePremiumModal(); } });
     </script>
 </body>
 </html>
