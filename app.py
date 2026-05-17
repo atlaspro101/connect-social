@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, session, url_for, j
 import hashlib
 from werkzeug.utils import secure_filename
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Определяем базовую директорию
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,9 +22,8 @@ os.makedirs(os.path.join(UPLOAD_FOLDER, 'gifs'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'voice'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'avatars'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'banners'), exist_ok=True)
-os.makedirs(os.path.join(UPLOAD_FOLDER, 'chat_media'), exist_ok=True)
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'ogg', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'ogg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -32,88 +31,19 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
+# ========== ФУНКЦИИ БАЗЫ ДАННЫХ ==========
 
-def init_db():
-    """Создает все таблицы и админа"""
+def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH)
-    c = conn.cursor()
-    
-    # Таблица пользователей
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        full_name TEXT,
-        bio TEXT,
-        birthday TEXT,
-        gender TEXT,
-        avatar TEXT,
-        banner TEXT,
-        is_admin INTEGER DEFAULT 0,
-        last_seen TIMESTAMP,
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица постов
-    c.execute('''CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        content TEXT,
-        media_path TEXT,
-        media_type TEXT,
-        likes INTEGER DEFAULT 0,
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица комментариев
-    c.execute('''CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        user_id INTEGER,
-        content TEXT,
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица лайков
-    c.execute('''CREATE TABLE IF NOT EXISTS post_likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        user_id INTEGER,
-        UNIQUE(post_id, user_id)
-    )''')
-    
-    # Таблица подписчиков
-    c.execute('''CREATE TABLE IF NOT EXISTS followers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        follower_id INTEGER,
-        following_id INTEGER,
-        created_at TIMESTAMP,
-        UNIQUE(follower_id, following_id)
-    )''')
-    
-    conn.commit()
-    
-    # Создаем админа
-    admin_pass = hash_password("fastyk26tyr")
-    c.execute("SELECT id FROM users WHERE username = 'taranka'")
-    if not c.fetchone():
-        c.execute("INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
-                  ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
-        print("✓ Админ создан: taranka / fastyk26tyr")
-    
-    conn.commit()
-    conn.close()
-    print("✓ База данных инициализирована")
-
-# ========== ФУНКЦИИ РАБОТЫ С БАЗОЙ ==========
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def add_user(username, password, full_name, birthday, gender, bio, avatar):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("INSERT INTO users (username, password, full_name, birthday, gender, bio, avatar, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                  (username, password, full_name, birthday, gender, bio, avatar, datetime.now(), datetime.now()))
+                  (username, password, full_name or '', birthday or '', gender or '', bio or '', avatar or '', datetime.now(), datetime.now()))
         conn.commit()
         conn.close()
         return True
@@ -123,60 +53,32 @@ def add_user(username, password, full_name, birthday, gender, bio, avatar):
 
 def get_user(username, password):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin FROM users WHERE username=? AND password=?", 
                   (username, password))
         user = c.fetchone()
         conn.close()
-        
-        if user:
-            return {
-                'id': user[0],
-                'username': user[1],
-                'full_name': user[2],
-                'bio': user[3],
-                'avatar': user[4],
-                'banner': user[5],
-                'birthday': user[6],
-                'gender': user[7],
-                'is_admin': user[8]
-            }
-        return None
+        return user
     except Exception as e:
         print(f"Error getting user: {e}")
         return None
 
 def get_user_by_id(user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, created_at, last_seen FROM users WHERE id=?", (user_id,))
         user = c.fetchone()
         conn.close()
-        
-        if user:
-            return {
-                'id': user[0],
-                'username': user[1],
-                'full_name': user[2],
-                'bio': user[3],
-                'avatar': user[4],
-                'banner': user[5],
-                'birthday': user[6],
-                'gender': user[7],
-                'is_admin': user[8],
-                'created_at': user[9],
-                'last_seen': user[10]
-            }
-        return None
+        return user
     except Exception as e:
         print(f"Error getting user by id: {e}")
         return None
 
 def update_last_seen(user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("UPDATE users SET last_seen = ? WHERE id = ?", (datetime.now(), user_id))
         conn.commit()
@@ -186,21 +88,20 @@ def update_last_seen(user_id):
 
 def add_post(user_id, content, media_path=None, media_type=None):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("INSERT INTO posts (user_id, content, media_path, media_type, created_at) VALUES (?, ?, ?, ?, ?)",
-                  (user_id, content, media_path, media_type, datetime.now()))
-        post_id = c.lastrowid
+                  (user_id, content or '', media_path, media_type, datetime.now()))
         conn.commit()
         conn.close()
-        return post_id
+        return True
     except Exception as e:
         print(f"Error adding post: {e}")
-        return None
+        return False
 
 def get_all_posts():
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
                      FROM posts 
@@ -208,29 +109,14 @@ def get_all_posts():
                      ORDER BY posts.created_at DESC''')
         posts = c.fetchall()
         conn.close()
-        
-        result = []
-        for post in posts:
-            result.append({
-                'id': post[0],
-                'user_id': post[1],
-                'content': post[2],
-                'media_path': post[3],
-                'media_type': post[4],
-                'likes': post[5],
-                'created_at': post[6],
-                'username': post[7],
-                'avatar': post[8],
-                'full_name': post[9]
-            })
-        return result
+        return [dict(post) for post in posts]
     except Exception as e:
         print(f"Error getting posts: {e}")
         return []
 
 def get_user_posts(user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute('''SELECT posts.*, users.username, users.avatar 
                      FROM posts 
@@ -239,28 +125,14 @@ def get_user_posts(user_id):
                      ORDER BY posts.created_at DESC''', (user_id,))
         posts = c.fetchall()
         conn.close()
-        
-        result = []
-        for post in posts:
-            result.append({
-                'id': post[0],
-                'user_id': post[1],
-                'content': post[2],
-                'media_path': post[3],
-                'media_type': post[4],
-                'likes': post[5],
-                'created_at': post[6],
-                'username': post[7],
-                'avatar': post[8]
-            })
-        return result
+        return [dict(post) for post in posts]
     except Exception as e:
         print(f"Error getting user posts: {e}")
         return []
 
 def add_comment(post_id, user_id, content):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
                   (post_id, user_id, content, datetime.now()))
@@ -271,7 +143,7 @@ def add_comment(post_id, user_id, content):
 
 def get_comments(post_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute('''SELECT comments.*, users.username, users.avatar 
                      FROM comments 
@@ -280,26 +152,14 @@ def get_comments(post_id):
                      ORDER BY comments.created_at ASC''', (post_id,))
         comments = c.fetchall()
         conn.close()
-        
-        result = []
-        for comment in comments:
-            result.append({
-                'id': comment[0],
-                'post_id': comment[1],
-                'user_id': comment[2],
-                'content': comment[3],
-                'created_at': comment[4],
-                'username': comment[5],
-                'avatar': comment[6]
-            })
-        return result
+        return [dict(comment) for comment in comments]
     except Exception as e:
         print(f"Error getting comments: {e}")
         return []
 
 def like_post(post_id, user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)", (post_id, user_id))
         c.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
@@ -311,7 +171,7 @@ def like_post(post_id, user_id):
 
 def has_liked_post(post_id, user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?", (post_id, user_id))
         result = c.fetchone()
@@ -324,7 +184,7 @@ def follow_user(follower_id, following_id):
     if follower_id == following_id:
         return False
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("INSERT INTO followers (follower_id, following_id, created_at) VALUES (?, ?, ?)",
                   (follower_id, following_id, datetime.now()))
@@ -336,7 +196,7 @@ def follow_user(follower_id, following_id):
 
 def unfollow_user(follower_id, following_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("DELETE FROM followers WHERE follower_id = ? AND following_id = ?", 
                   (follower_id, following_id))
@@ -347,7 +207,7 @@ def unfollow_user(follower_id, following_id):
 
 def is_following(follower_id, following_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT id FROM followers WHERE follower_id = ? AND following_id = ?", 
                   (follower_id, following_id))
@@ -359,7 +219,7 @@ def is_following(follower_id, following_id):
 
 def get_followers_count(user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
         count = c.fetchone()[0]
@@ -370,7 +230,7 @@ def get_followers_count(user_id):
 
 def get_following_count(user_id):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM followers WHERE follower_id = ?", (user_id,))
         count = c.fetchone()[0]
@@ -381,29 +241,19 @@ def get_following_count(user_id):
 
 def search_users(query):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
                   (f'%{query}%', f'%{query}%'))
         users = c.fetchall()
         conn.close()
-        
-        result = []
-        for user in users:
-            result.append({
-                'id': user[0],
-                'username': user[1],
-                'full_name': user[2],
-                'bio': user[3],
-                'avatar': user[4]
-            })
-        return result
+        return [dict(user) for user in users]
     except:
         return []
 
 def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender=None, avatar=None, banner=None):
     try:
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = get_db_connection()
         c = conn.cursor()
         if full_name:
             c.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
@@ -430,17 +280,6 @@ def login_required(f):
         if 'user_id' not in session:
             return redirect(url_for('login'))
         update_last_seen(session['user_id'])
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        user = get_user_by_id(session['user_id'])
-        if not user or not user.get('is_admin'):
-            return "Access denied", 403
         return f(*args, **kwargs)
     return decorated_function
 
@@ -539,7 +378,7 @@ def feed():
                          liked_posts=liked_posts,
                          user_id=session['user_id'],
                          is_admin=session.get('is_admin', False),
-                         user_avatar=user.get('avatar') if user else None)
+                         user_avatar=user['avatar'] if user else None)
 
 @app.route('/profile/<int:user_id>')
 @login_required
@@ -565,7 +404,7 @@ def profile(user_id):
                          is_following=is_following_user,
                          current_user_id=session['user_id'],
                          is_admin=session.get('is_admin', False),
-                         user_avatar=current_user.get('avatar') if current_user else None,
+                         user_avatar=current_user['avatar'] if current_user else None,
                          session=session)
 
 @app.route('/update_profile', methods=['POST'])
@@ -657,9 +496,6 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 # ========== ЗАПУСК ==========
-# Инициализируем БД
-init_db()
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
