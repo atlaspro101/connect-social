@@ -16,7 +16,48 @@ app.secret_key = 'connect-secret-key-2026-render'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
-# Создаем папки
+# ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
+
+@app.template_filter('format_time')
+def format_time_filter(date_value):
+    """Форматирует дату в строку"""
+    if not date_value:
+        return ""
+    if isinstance(date_value, datetime):
+        return date_value.strftime('%d.%m.%Y %H:%M')
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            return date_obj.strftime('%d.%m.%Y %H:%M')
+        except:
+            try:
+                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
+                return date_obj.strftime('%d.%m.%Y %H:%M')
+            except:
+                return date_value[:16]
+    return str(date_value)
+
+@app.template_filter('format_date')
+def format_date_filter(date_value):
+    """Форматирует дату в формате 'январь 2026 г.'"""
+    if not date_value:
+        return "январь 2026 г."
+    if isinstance(date_value, datetime):
+        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+        return f"{months[date_value.month - 1]} {date_value.year} г."
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+            return f"{months[date_obj.month - 1]} {date_obj.year} г."
+        except:
+            return "январь 2026 г."
+    return "январь 2026 г."
+
+# ========== СОЗДАНИЕ ПАПОК ==========
+
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'photos'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'gifs'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'voice'), exist_ok=True)
@@ -31,7 +72,7 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (АВТОМАТИЧЕСКИ) ==========
+# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
 
 def init_db():
     """Создает базу данных и таблицы при первом запуске"""
@@ -108,7 +149,7 @@ def init_db():
     
     conn.close()
 
-# Вызываем инициализацию БД при запуске
+# Вызываем инициализацию БД
 init_db()
 
 # ========== ФУНКЦИИ БАЗЫ ДАННЫХ ==========
