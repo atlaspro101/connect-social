@@ -30,7 +30,7 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
+# ========== ФИЛЬТРЫ ==========
 @app.template_filter('format_time')
 def format_time_filter(date_value):
     if not date_value:
@@ -43,7 +43,7 @@ def format_time_filter(date_value):
     except:
         return str(date_value)[:16]
 
-# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
+# ========== ИНИЦИАЛИЗАЦИЯ БД ==========
 def init_db():
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
@@ -103,7 +103,6 @@ def init_db():
                      VALUES (?, ?, ?, ?, ?, ?)''',
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
         conn.commit()
-        print("✅ База данных создана!")
     
     conn.close()
 
@@ -373,7 +372,7 @@ def register():
         if 'avatar' in request.files:
             file = request.files['avatar']
             if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename(f"{username}_{file.filename}")
+                filename = secure_filename(f"{datetime.now().timestamp()}_{username}_{file.filename}")
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'avatars', filename)
                 file.save(filepath)
                 avatar_path = f'/static/uploads/avatars/{filename}'
@@ -549,6 +548,46 @@ def like_post_route(post_id):
         posts = get_all_posts()
         post = next((p for p in posts if p['id'] == post_id), None)
         return jsonify({'liked': True, 'likes_count': post['likes'] if post else 0})
+
+@app.route('/admin')
+@login_required
+def admin_panel():
+    user = get_user_by_id(session['user_id'])
+    if not user or not user['is_admin']:
+        return "Access denied", 403
+    
+    posts = get_all_posts()
+    return render_template('admin.html', posts=posts, username=session['username'])
+
+@app.route('/admin/delete_post/<int:post_id>', methods=['POST'])
+@login_required
+def admin_delete_post(post_id):
+    user = get_user_by_id(session['user_id'])
+    if not user or not user['is_admin']:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except:
+        return jsonify({'success': False})
+
+@app.route('/chats')
+@login_required
+def chats():
+    return render_template('chats.html', username=session['username'], unread_count=0)
+
+@app.route('/chat/<int:user_id>')
+@login_required
+def chat(user_id):
+    other_user = get_user_by_id(user_id)
+    if not other_user:
+        return "User not found", 404
+    return render_template('chat.html', other_user=other_user, username=session['username'])
 
 @app.route('/logout')
 def logout():
