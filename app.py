@@ -94,13 +94,16 @@ def init_db():
     
     conn.commit()
     
-    # Создаем админа если его нет
-    admin_pass = hash_password("fastyk26tyr")
-    c.execute("SELECT id FROM users WHERE username = 'taranka'")
-    if not c.fetchone():
-        c.execute("INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
-                  ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
-        print("✓ Админ создан: taranka / fastyk26tyr")
+    # Проверяем и создаем админа
+    try:
+        c.execute("SELECT id FROM users WHERE username = 'taranka'")
+        if not c.fetchone():
+            admin_pass = hash_password("fastyk26tyr")
+            c.execute("INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)",
+                      ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
+            print("✓ Админ создан: taranka / fastyk26tyr")
+    except Exception as e:
+        print(f"Error creating admin: {e}")
     
     conn.commit()
     conn.close()
@@ -111,8 +114,6 @@ def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
-# ========== ОСНОВНЫЕ ФУНКЦИИ ==========
 
 def add_user(username, password, full_name, birthday, gender, bio, avatar):
     conn = get_db()
@@ -131,79 +132,117 @@ def add_user(username, password, full_name, birthday, gender, bio, avatar):
 def get_user(username, password):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin FROM users WHERE username=? AND password=?", 
-              (username, password))
-    user = c.fetchone()
-    conn.close()
-    return user
+    try:
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin FROM users WHERE username=? AND password=?", 
+                  (username, password))
+        user = c.fetchone()
+        return user
+    except Exception as e:
+        print(f"Error getting user: {e}")
+        return None
+    finally:
+        conn.close()
 
 def get_user_by_id(user_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, created_at, last_seen FROM users WHERE id=?", (user_id,))
-    user = c.fetchone()
-    conn.close()
-    return dict(user) if user else None
+    try:
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, created_at, last_seen FROM users WHERE id=?", (user_id,))
+        user = c.fetchone()
+        return dict(user) if user else None
+    except Exception as e:
+        print(f"Error getting user by id: {e}")
+        return None
+    finally:
+        conn.close()
 
 def update_last_seen(user_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("UPDATE users SET last_seen = ? WHERE id = ?", (datetime.now(), user_id))
-    conn.commit()
-    conn.close()
+    try:
+        c.execute("UPDATE users SET last_seen = ? WHERE id = ?", (datetime.now(), user_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating last seen: {e}")
+    finally:
+        conn.close()
 
 def add_post(user_id, content, media_path=None, media_type=None):
     conn = get_db()
     c = conn.cursor()
-    c.execute("INSERT INTO posts (user_id, content, media_path, media_type, created_at) VALUES (?, ?, ?, ?, ?)",
-              (user_id, content, media_path, media_type, datetime.now()))
-    post_id = c.lastrowid
-    conn.commit()
-    conn.close()
-    return post_id
+    try:
+        c.execute("INSERT INTO posts (user_id, content, media_path, media_type, created_at) VALUES (?, ?, ?, ?, ?)",
+                  (user_id, content, media_path, media_type, datetime.now()))
+        post_id = c.lastrowid
+        conn.commit()
+        return post_id
+    except Exception as e:
+        print(f"Error adding post: {e}")
+        return None
+    finally:
+        conn.close()
 
 def get_all_posts():
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
-                 FROM posts 
-                 JOIN users ON posts.user_id = users.id 
-                 ORDER BY posts.created_at DESC''')
-    posts = c.fetchall()
-    conn.close()
-    return [dict(post) for post in posts]
+    try:
+        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
+                     FROM posts 
+                     JOIN users ON posts.user_id = users.id 
+                     ORDER BY posts.created_at DESC''')
+        posts = c.fetchall()
+        return [dict(post) for post in posts]
+    except Exception as e:
+        print(f"Error getting posts: {e}")
+        return []
+    finally:
+        conn.close()
 
 def get_user_posts(user_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT posts.*, users.username, users.avatar 
-                 FROM posts 
-                 JOIN users ON posts.user_id = users.id 
-                 WHERE posts.user_id = ?
-                 ORDER BY posts.created_at DESC''', (user_id,))
-    posts = c.fetchall()
-    conn.close()
-    return [dict(post) for post in posts]
+    try:
+        c.execute('''SELECT posts.*, users.username, users.avatar 
+                     FROM posts 
+                     JOIN users ON posts.user_id = users.id 
+                     WHERE posts.user_id = ?
+                     ORDER BY posts.created_at DESC''', (user_id,))
+        posts = c.fetchall()
+        return [dict(post) for post in posts]
+    except Exception as e:
+        print(f"Error getting user posts: {e}")
+        return []
+    finally:
+        conn.close()
 
 def add_comment(post_id, user_id, content):
     conn = get_db()
     c = conn.cursor()
-    c.execute("INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
-              (post_id, user_id, content, datetime.now()))
-    conn.commit()
-    conn.close()
+    try:
+        c.execute("INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
+                  (post_id, user_id, content, datetime.now()))
+        conn.commit()
+    except Exception as e:
+        print(f"Error adding comment: {e}")
+    finally:
+        conn.close()
 
 def get_comments(post_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT comments.*, users.username, users.avatar 
-                 FROM comments 
-                 JOIN users ON comments.user_id = users.id 
-                 WHERE comments.post_id = ? 
-                 ORDER BY comments.created_at ASC''', (post_id,))
-    comments = c.fetchall()
-    conn.close()
-    return [dict(comment) for comment in comments]
+    try:
+        c.execute('''SELECT comments.*, users.username, users.avatar 
+                     FROM comments 
+                     JOIN users ON comments.user_id = users.id 
+                     WHERE comments.post_id = ? 
+                     ORDER BY comments.created_at ASC''', (post_id,))
+        comments = c.fetchall()
+        return [dict(comment) for comment in comments]
+    except Exception as e:
+        print(f"Error getting comments: {e}")
+        return []
+    finally:
+        conn.close()
 
 def like_post(post_id, user_id):
     conn = get_db()
@@ -221,10 +260,14 @@ def like_post(post_id, user_id):
 def has_liked_post(post_id, user_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?", (post_id, user_id))
-    result = c.fetchone()
-    conn.close()
-    return result is not None
+    try:
+        c.execute("SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?", (post_id, user_id))
+        result = c.fetchone()
+        return result is not None
+    except:
+        return False
+    finally:
+        conn.close()
 
 def follow_user(follower_id, following_id):
     if follower_id == following_id:
@@ -244,62 +287,86 @@ def follow_user(follower_id, following_id):
 def unfollow_user(follower_id, following_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("DELETE FROM followers WHERE follower_id = ? AND following_id = ?", 
-              (follower_id, following_id))
-    conn.commit()
-    conn.close()
+    try:
+        c.execute("DELETE FROM followers WHERE follower_id = ? AND following_id = ?", 
+                  (follower_id, following_id))
+        conn.commit()
+    except:
+        pass
+    finally:
+        conn.close()
 
 def is_following(follower_id, following_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id FROM followers WHERE follower_id = ? AND following_id = ?", 
-              (follower_id, following_id))
-    result = c.fetchone()
-    conn.close()
-    return result is not None
+    try:
+        c.execute("SELECT id FROM followers WHERE follower_id = ? AND following_id = ?", 
+                  (follower_id, following_id))
+        result = c.fetchone()
+        return result is not None
+    except:
+        return False
+    finally:
+        conn.close()
 
 def get_followers_count(user_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
-    count = c.fetchone()[0]
-    conn.close()
-    return count
+    try:
+        c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
+        count = c.fetchone()[0]
+        return count
+    except:
+        return 0
+    finally:
+        conn.close()
 
 def get_following_count(user_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM followers WHERE follower_id = ?", (user_id,))
-    count = c.fetchone()[0]
-    conn.close()
-    return count
+    try:
+        c.execute("SELECT COUNT(*) FROM followers WHERE follower_id = ?", (user_id,))
+        count = c.fetchone()[0]
+        return count
+    except:
+        return 0
+    finally:
+        conn.close()
 
 def search_users(query):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
-              (f'%{query}%', f'%{query}%'))
-    users = c.fetchall()
-    conn.close()
-    return [dict(user) for user in users]
+    try:
+        c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
+                  (f'%{query}%', f'%{query}%'))
+        users = c.fetchall()
+        return [dict(user) for user in users]
+    except:
+        return []
+    finally:
+        conn.close()
 
 def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender=None, avatar=None, banner=None):
     conn = get_db()
     c = conn.cursor()
-    if full_name:
-        c.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
-    if bio:
-        c.execute("UPDATE users SET bio = ? WHERE id = ?", (bio, user_id))
-    if birthday:
-        c.execute("UPDATE users SET birthday = ? WHERE id = ?", (birthday, user_id))
-    if gender:
-        c.execute("UPDATE users SET gender = ? WHERE id = ?", (gender, user_id))
-    if avatar:
-        c.execute("UPDATE users SET avatar = ? WHERE id = ?", (avatar, user_id))
-    if banner:
-        c.execute("UPDATE users SET banner = ? WHERE id = ?", (banner, user_id))
-    conn.commit()
-    conn.close()
+    try:
+        if full_name:
+            c.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
+        if bio:
+            c.execute("UPDATE users SET bio = ? WHERE id = ?", (bio, user_id))
+        if birthday:
+            c.execute("UPDATE users SET birthday = ? WHERE id = ?", (birthday, user_id))
+        if gender:
+            c.execute("UPDATE users SET gender = ? WHERE id = ?", (gender, user_id))
+        if avatar:
+            c.execute("UPDATE users SET avatar = ? WHERE id = ?", (avatar, user_id))
+        if banner:
+            c.execute("UPDATE users SET banner = ? WHERE id = ?", (banner, user_id))
+        conn.commit()
+    except Exception as e:
+        print(f"Error updating profile: {e}")
+    finally:
+        conn.close()
 
 # ========== ДЕКОРАТОРЫ ==========
 
@@ -535,8 +602,11 @@ def logout():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
+# ========== ИНИЦИАЛИЗАЦИЯ БД ПРИ ЗАПУСКЕ ==========
+# ВАЖНО: Вызываем init_db() при загрузке приложения
+init_db()
+
 # ========== ЗАПУСК ==========
 if __name__ == '__main__':
-    init_db()  # ВАЖНО: создаем таблицы перед запуском
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
