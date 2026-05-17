@@ -2,93 +2,94 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Пост - СоцСеть</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Пост - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script>
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                   || window.innerWidth <= 768;
+        }
+        if (isMobile()) {
+            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
+        } else {
+            document.write('<link rel="stylesheet" href="/static/css/style.css">');
+        }
+    </script>
+    <style>
+        .post-detail-container { max-width: 680px; margin: 80px auto 40px; padding: 20px; }
+        .post-card { background: rgba(20,30,45,0.6); backdrop-filter: blur(12px); border-radius: 20px; padding: 20px; margin-bottom: 24px; }
+        .post-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .post-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+        .post-author { font-weight: bold; font-size: 16px; }
+        .post-date { font-size: 12px; color: rgba(255,255,255,0.5); }
+        .post-content { font-size: 16px; line-height: 1.5; margin-bottom: 16px; }
+        .post-media img { width: 100%; border-radius: 12px; max-height: 400px; object-fit: cover; margin-bottom: 16px; }
+        .post-stats { display: flex; gap: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .comments-section { margin-top: 24px; }
+        .comment { background: rgba(20,30,45,0.4); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+        .comment-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .comment-avatar { width: 36px; height: 36px; border-radius: 50%; }
+        .comment-author { font-weight: 600; font-size: 14px; }
+        .comment-time { font-size: 11px; color: rgba(255,255,255,0.4); margin-left: auto; }
+        .comment-content { font-size: 14px; margin-left: 46px; }
+        .add-comment { margin-top: 20px; background: rgba(20,30,45,0.6); border-radius: 20px; padding: 20px; }
+        .add-comment textarea { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 12px; color: white; resize: vertical; margin-bottom: 12px; }
+        .verified-badge { display: inline-block; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; text-align: center; line-height: 18px; margin-left: 6px; }
+        @media (max-width: 768px) { .post-detail-container { margin-top: 70px; padding: 16px; } }
+    </style>
 </head>
 <body>
-    <div class="navbar">
-        <div class="navbar-brand">✨ СоцСеть</div>
-        <div class="navbar-links">
-            <span>👋 {{ username }}</span>
-            <a href="{{ url_for('feed') }}">📱 Лента</a>
-            <a href="{{ url_for('logout') }}">🚪 Выйти</a>
-        </div>
-    </div>
-    
-    <div class="feed-container">
-        <a href="{{ url_for('feed') }}" class="back-btn">← Назад к ленте</a>
-        
-        <div class="post">
+    <div class="post-detail-container">
+        <div class="post-card">
             <div class="post-header">
-                <span class="post-author">👤 {{ post.username }}</span>
-                <span class="post-date">{{ post.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                {% if post.avatar %}<img src="{{ post.avatar }}" class="post-avatar">{% else %}<div class="avatar-placeholder" style="width:50px;height:50px;">{{ post.username[0].upper() }}</div>{% endif %}
+                <div><div class="post-author">{{ post.full_name or post.username }}{% if post.is_admin %}<span class="verified-badge">✓</span>{% endif %}</div><div class="post-date">{{ post.created_at|format_time }}</div></div>
             </div>
-            <div class="post-content">
-                {{ post.content }}
-            </div>
-            {% if post.media_path %}
-            <div class="post-media">
-                {% if post.media_type == 'image' %}
-                    <img src="{{ url_for('static', filename=post.media_path.split('static/')[1]) }}" alt="Post image">
-                {% elif post.media_type == 'gif' %}
-                    <img src="{{ url_for('static', filename=post.media_path.split('static/')[1]) }}" alt="Post GIF">
-                {% elif post.media_type == 'audio' %}
-                    <audio controls class="audio-player">
-                        <source src="{{ url_for('static', filename=post.media_path.split('static/')[1]) }}" type="audio/mpeg">
-                    </audio>
-                {% endif %}
-            </div>
+            <div class="post-content">{{ post.content }}</div>
+            {% if post.media_path and (post.media_type == 'image' or post.media_type == 'gif') %}
+            <div class="post-media"><img src="{{ post.media_path }}" alt="Post media" onclick="openLightbox(this.src)"></div>
             {% endif %}
-            <div class="post-actions">
-                <span>❤️ {{ post.likes }} лайков</span>
-            </div>
+            <div class="post-stats">❤️ {{ post.likes }} лайков &nbsp;|&nbsp; 💬 {{ comments|length }} комментариев</div>
         </div>
         
         <div class="comments-section">
-            <h2>💬 Комментарии ({{ comments|length }})</h2>
-            
-            <div class="glass-card">
-                <form method="POST" action="{{ url_for('add_comment_route', post_id=post.id) }}" enctype="multipart/form-data">
-                    <textarea name="content" placeholder="Ваш комментарий..."></textarea>
-                    <div class="file-input">
-                        <label>🎤 Записать голосовое сообщение:</label>
-                        <input type="file" name="voice" accept="audio/*">
-                    </div>
-                    <button type="submit">Отправить комментарий 💬</button>
-                </form>
+            <h3>💬 Комментарии ({{ comments|length }})</h3>
+            {% for comment in comments %}
+            <div class="comment">
+                <div class="comment-header">
+                    {% if comment.avatar %}<img src="{{ comment.avatar }}" class="comment-avatar">{% else %}<div class="avatar-placeholder" style="width:36px;height:36px;font-size:16px;">{{ comment.username[0].upper() }}</div>{% endif %}
+                    <div class="comment-author">{{ comment.username }}{% if comment.is_admin %}<span class="verified-badge">✓</span>{% endif %}</div>
+                    <div class="comment-time">{{ comment.created_at|format_time }}</div>
+                </div>
+                <div class="comment-content">{{ comment.content }}</div>
             </div>
-            
-            {% if comments %}
-                {% for comment in comments %}
-                <div class="comment">
-                    <div class="comment-header">
-                        <span class="comment-author">{{ comment.username }}</span>
-                        <span class="post-date">{{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                    </div>
-                    {% if comment.content %}
-                    <div class="comment-content">
-                        {{ comment.content }}
-                    </div>
-                    {% endif %}
-                    {% if comment.voice_path %}
-                    <div class="comment-voice">
-                        <audio controls>
-                            <source src="{{ url_for('static', filename=comment.voice_path.split('static/')[1]) }}" type="audio/mpeg">
-                        </audio>
-                    </div>
-                    {% endif %}
-                    <div class="post-actions">
-                        <span>❤️ {{ comment.likes }}</span>
-                    </div>
-                </div>
-                {% endfor %}
             {% else %}
-                <div class="no-posts">
-                    <p>😢 Нет комментариев. Будьте первым!</p>
-                </div>
-            {% endif %}
+            <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5);">Нет комментариев. Будьте первым!</div>
+            {% endfor %}
+        </div>
+        
+        <div class="add-comment">
+            <form method="POST" action="/add_comment/{{ post.id }}">
+                <textarea name="content" placeholder="Написать комментарий..." rows="3"></textarea>
+                <button type="submit" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;padding:12px 24px;border-radius:30px;color:white;cursor:pointer;width:100%;">💬 Отправить</button>
+            </form>
         </div>
     </div>
+    
+    <div class="bottom-nav" style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,20,35,0.95);backdrop-filter:blur(20px);display:flex;justify-content:space-around;padding:8px 16px 20px;z-index:1000">
+        <a href="/feed" class="nav-item"><span>🏠</span><span>Лента</span></a>
+        <a href="/search" class="nav-item"><span>🔍</span><span>Поиск</span></a>
+        <a href="/chats" class="nav-item"><span>💬</span><span>Чаты</span></a>
+        <a href="/profile/{{ user_id }}" class="nav-item"><span>👤</span><span>Профиль</span></a>
+    </div>
+    
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()"><span class="lightbox-close">&times;</span><img id="lightbox-img" src=""></div>
+    
+    <script>
+        function openLightbox(src) { document.getElementById('lightbox-img').src = src; document.getElementById('lightbox').classList.add('active'); }
+        function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    </script>
 </body>
 </html>

@@ -30,18 +30,42 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ========== ФИЛЬТРЫ ==========
+# ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
 @app.template_filter('format_time')
 def format_time_filter(date_value):
     if not date_value:
         return ""
     if isinstance(date_value, datetime):
         return date_value.strftime('%d.%m.%Y %H:%M')
-    try:
-        date_obj = datetime.strptime(str(date_value), '%Y-%m-%d %H:%M:%S.%f')
-        return date_obj.strftime('%d.%m.%Y %H:%M')
-    except:
-        return str(date_value)[:16]
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            return date_obj.strftime('%d.%m.%Y %H:%M')
+        except:
+            try:
+                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
+                return date_obj.strftime('%d.%m.%Y %H:%M')
+            except:
+                return date_value[:16]
+    return str(date_value)[:16]
+
+@app.template_filter('format_date')
+def format_date_filter(date_value):
+    if not date_value:
+        return "январь 2026 г."
+    if isinstance(date_value, datetime):
+        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+        return f"{months[date_value.month - 1]} {date_value.year} г."
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+            return f"{months[date_obj.month - 1]} {date_obj.year} г."
+        except:
+            return "январь 2026 г."
+    return "январь 2026 г."
 
 # ========== ИНИЦИАЛИЗАЦИЯ БД ==========
 def init_db():
@@ -175,13 +199,23 @@ def get_all_posts():
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
+        c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name, users.is_admin
                      FROM posts 
                      JOIN users ON posts.user_id = users.id 
                      ORDER BY posts.created_at DESC''')
         posts = c.fetchall()
         conn.close()
-        return [dict(post) for post in posts]
+        result = []
+        for post in posts:
+            post_dict = dict(post)
+            # Конвертируем created_at в datetime если строка
+            if isinstance(post_dict.get('created_at'), str):
+                try:
+                    post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+                except:
+                    post_dict['created_at'] = datetime.now()
+            result.append(post_dict)
+        return result
     except:
         return []
 
@@ -189,14 +223,23 @@ def get_user_posts(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT posts.*, users.username, users.avatar 
+        c.execute('''SELECT posts.*, users.username, users.avatar, users.is_admin
                      FROM posts 
                      JOIN users ON posts.user_id = users.id 
                      WHERE posts.user_id = ?
                      ORDER BY posts.created_at DESC''', (user_id,))
         posts = c.fetchall()
         conn.close()
-        return [dict(post) for post in posts]
+        result = []
+        for post in posts:
+            post_dict = dict(post)
+            if isinstance(post_dict.get('created_at'), str):
+                try:
+                    post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+                except:
+                    post_dict['created_at'] = datetime.now()
+            result.append(post_dict)
+        return result
     except:
         return []
 
@@ -215,14 +258,23 @@ def get_comments(post_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT comments.*, users.username, users.avatar 
+        c.execute('''SELECT comments.*, users.username, users.avatar, users.is_admin
                      FROM comments 
                      JOIN users ON comments.user_id = users.id 
                      WHERE comments.post_id = ? 
                      ORDER BY comments.created_at ASC''', (post_id,))
         comments = c.fetchall()
         conn.close()
-        return [dict(comment) for comment in comments]
+        result = []
+        for comment in comments:
+            comment_dict = dict(comment)
+            if isinstance(comment_dict.get('created_at'), str):
+                try:
+                    comment_dict['created_at'] = datetime.strptime(comment_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+                except:
+                    comment_dict['created_at'] = datetime.now()
+            result.append(comment_dict)
+        return result
     except:
         return []
 
@@ -312,7 +364,7 @@ def search_users(query):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
+        c.execute("SELECT id, username, full_name, bio, avatar, is_admin FROM users WHERE username LIKE ? OR full_name LIKE ? LIMIT 20", 
                   (f'%{query}%', f'%{query}%'))
         users = c.fetchall()
         conn.close()
@@ -341,6 +393,74 @@ def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender
     except:
         pass
 
+def delete_post(post_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def get_all_users():
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT id, username, full_name, is_admin, created_at, last_seen FROM users ORDER BY created_at DESC")
+        users = c.fetchall()
+        conn.close()
+        return [dict(user) for user in users]
+    except:
+        return []
+
+def get_total_users():
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM users")
+        count = c.fetchone()[0]
+        conn.close()
+        return count
+    except:
+        return 0
+
+def get_today_registrations():
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        c.execute("SELECT COUNT(*) FROM users WHERE created_at > ?", (today,))
+        count = c.fetchone()[0]
+        conn.close()
+        return count
+    except:
+        return 0
+
+def get_online_users():
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        five_min_ago = datetime.now() - timedelta(minutes=5)
+        c.execute("SELECT COUNT(*) FROM users WHERE last_seen > ?", (five_min_ago,))
+        count = c.fetchone()[0]
+        conn.close()
+        return count
+    except:
+        return 0
+
+def get_total_posts():
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM posts")
+        count = c.fetchone()[0]
+        conn.close()
+        return count
+    except:
+        return 0
+
 # ========== ДЕКОРАТОРЫ ==========
 def login_required(f):
     @wraps(f)
@@ -348,6 +468,17 @@ def login_required(f):
         if 'user_id' not in session:
             return redirect(url_for('login'))
         update_last_seen(session['user_id'])
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        user = get_user_by_id(session['user_id'])
+        if not user or not user['is_admin']:
+            return "Access denied", 403
         return f(*args, **kwargs)
     return decorated_function
 
@@ -528,7 +659,7 @@ def post_detail(post_id):
         return "Post not found", 404
     
     comments = get_comments(post_id)
-    return render_template('post_detail.html', post=post, comments=comments, username=session['username'])
+    return render_template('post_detail.html', post=post, comments=comments, username=session['username'], user_id=session['user_id'])
 
 @app.route('/add_comment/<int:post_id>', methods=['POST'])
 @login_required
@@ -550,36 +681,36 @@ def like_post_route(post_id):
         return jsonify({'liked': True, 'likes_count': post['likes'] if post else 0})
 
 @app.route('/admin')
-@login_required
+@admin_required
 def admin_panel():
-    user = get_user_by_id(session['user_id'])
-    if not user or not user['is_admin']:
-        return "Access denied", 403
-    
+    total_users = get_total_users()
+    today_users = get_today_registrations()
+    online_users = get_online_users()
+    total_posts = get_total_posts()
+    all_users = get_all_users()
     posts = get_all_posts()
-    return render_template('admin.html', posts=posts, username=session['username'])
+    
+    return render_template('admin.html', 
+                         total_users=total_users,
+                         today_users=today_users,
+                         online_users=online_users,
+                         total_posts=total_posts,
+                         users=all_users,
+                         posts=posts,
+                         username=session['username'],
+                         is_admin=True)
 
 @app.route('/admin/delete_post/<int:post_id>', methods=['POST'])
-@login_required
+@admin_required
 def admin_delete_post(post_id):
-    user = get_user_by_id(session['user_id'])
-    if not user or not user['is_admin']:
-        return jsonify({'error': 'Access denied'}), 403
-    
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-        conn.commit()
-        conn.close()
+    if delete_post(post_id):
         return jsonify({'success': True})
-    except:
-        return jsonify({'success': False})
+    return jsonify({'success': False})
 
 @app.route('/chats')
 @login_required
 def chats():
-    return render_template('chats.html', username=session['username'], unread_count=0)
+    return render_template('chats.html', username=session['username'], unread_count=0, user_id=session['user_id'])
 
 @app.route('/chat/<int:user_id>')
 @login_required
@@ -587,7 +718,7 @@ def chat(user_id):
     other_user = get_user_by_id(user_id)
     if not other_user:
         return "User not found", 404
-    return render_template('chat.html', other_user=other_user, username=session['username'])
+    return render_template('chat.html', other_user=other_user, username=session['username'], user_id=session['user_id'])
 
 @app.route('/logout')
 def logout():
@@ -599,5 +730,6 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 if __name__ == '__main__':
+    from datetime import timedelta
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
