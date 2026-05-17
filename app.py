@@ -5,6 +5,9 @@ import hashlib
 from werkzeug.utils import secure_filename
 from functools import wraps
 from datetime import datetime, timedelta
+import threading
+import time
+import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, 'users.db')
@@ -29,6 +32,37 @@ def allowed_file(filename):
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+# ========== KEEP-ALIVE ФУНКЦИЯ (чтобы хостинг не выключался) ==========
+def keep_alive():
+    """Функция для поддержания активности сервера"""
+    url = os.environ.get('RENDER_EXTERNAL_URL', 'http://localhost:5000')
+    if url == 'http://localhost:5000':
+        # Если на локальном сервере, пробуем получить реальный URL
+        url = 'https://connectss-mapb.onrender.com'
+    
+    while True:
+        try:
+            # Пишем в лог каждые 10 секунд
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[KEEP-ALIVE] {current_time} - Сервер активен, поток поддерживается")
+            
+            # Пинг самого себя чтобы не заснуть (только если на Render)
+            if 'onrender.com' in url:
+                response = requests.get(url, timeout=10)
+                print(f"[KEEP-ALIVE] Пинг успешен - статус: {response.status_code}")
+            
+        except Exception as e:
+            print(f"[KEEP-ALIVE] Ошибка пинга: {e}")
+        
+        # Ждем 10 секунд перед следующим циклом
+        time.sleep(10)
+
+# Запускаем keep-alive поток
+def start_keep_alive():
+    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
+    keep_alive_thread.start()
+    print("[KEEP-ALIVE] Поток поддержания активности запущен!")
 
 # ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
 @app.template_filter('format_time')
@@ -138,6 +172,7 @@ def init_db():
         pass
     
     conn.close()
+    print("[DATABASE] База данных инициализирована")
 
 init_db()
 
@@ -790,6 +825,15 @@ def chat(user_id):
         return "User not found", 404
     return render_template('chat.html', other_user=other_user, username=session['username'], user_id=session['user_id'])
 
+@app.route('/health')
+def health():
+    """Endpoint для проверки здоровья сервера"""
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat(),
+        'uptime': 'Running'
+    })
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -799,7 +843,22 @@ def logout():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
+# ========== ЗАПУСК ==========
 if __name__ == '__main__':
-    from datetime import timedelta
+    # Запускаем keep-alive поток
+    start_keep_alive()
+    
+    print("\n" + "="*50)
+    print("🚀 CONNECT SOCIAL NETWORK STARTED")
+    print("="*50)
+    print(f"📅 Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🌐 Локальный адрес: http://localhost:5000")
+    print(f"💾 База данных: {DATABASE_PATH}")
+    print(f"📁 Папка загрузок: {UPLOAD_FOLDER}")
+    print("="*50)
+    print("[KEEP-ALIVE] Сервер будет пинговать себя каждые 10 секунд")
+    print("[KEEP-ALIVE] Это предотвращает засыпание на бесплатных хостингах")
+    print("="*50 + "\n")
+    
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
