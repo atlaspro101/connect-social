@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Вход - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
@@ -20,22 +21,39 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .qr-container {
             background: rgba(25, 35, 50, 0.7);
             backdrop-filter: blur(20px);
             border-radius: 32px;
             padding: 40px;
             text-align: center;
-            max-width: 400px;
+            max-width: 450px;
             width: 100%;
+            animation: fadeIn 0.5s ease;
         }
-        
-        h1 {
-            color: white;
-            margin-bottom: 20px;
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
-        
+
+        .qr-header {
+            margin-bottom: 30px;
+        }
+
+        .qr-header h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .qr-header p {
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 8px;
+        }
+
         .qr-code {
             background: white;
             padding: 20px;
@@ -43,27 +61,32 @@
             margin: 20px 0;
             display: inline-block;
         }
-        
+
         .qr-code canvas {
             width: 200px;
             height: 200px;
         }
-        
-        .login-link {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            text-decoration: none;
-            padding: 12px 30px;
-            border-radius: 30px;
-            margin-top: 20px;
-        }
-        
+
         .status {
-            margin-top: 20px;
-            color: rgba(255, 255, 255, 0.7);
+            margin: 20px 0;
+            padding: 12px;
+            border-radius: 30px;
+            background: rgba(0,0,0,0.3);
+            color: rgba(255,255,255,0.8);
         }
-        
+
+        .status.pending {
+            color: #ffa502;
+        }
+
+        .status.confirmed {
+            color: #4cd964;
+        }
+
+        .status.error {
+            color: #ff4757;
+        }
+
         .spinner {
             display: inline-block;
             width: 20px;
@@ -72,58 +95,95 @@
             border-top-color: #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            .qr-container { padding: 30px 20px; }
+            .qr-code canvas { width: 180px; height: 180px; }
         }
     </style>
 </head>
 <body>
     <div class="qr-container">
-        <h1>📱 QR Вход</h1>
-        <p style="color: rgba(255,255,255,0.7);">Отсканируйте QR-код камерой телефона</p>
+        <div class="qr-header">
+            <h1>📱 QR Вход</h1>
+            <p>Отсканируйте QR-код камерой телефона</p>
+        </div>
+
         <div class="qr-code" id="qrcode"></div>
-        <div class="status" id="qrStatus">
+
+        <div class="status pending" id="qrStatus">
             <span class="spinner"></span> Ожидание сканирования...
         </div>
-        <a href="/login" class="login-link">Или войти по паролю</a>
+
+        <a href="/login" class="back-link">← Вернуться к входу</a>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
-        let ws = null;
-        let sessionId = generateSessionId();
-        
-        function generateSessionId() {
-            return 'qr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
-        
-        // Генерируем QR-код с URL
-        const qrUrl = window.location.origin + '/qr/scan/' + sessionId;
+        const sessionId = '{{ session_id }}';
+        let checkInterval = null;
+        const ws = new WebSocket(`wss://${window.location.host}/ws/qr/${sessionId}`);
+
+        // Генерируем QR-код
+        const qrUrl = `${window.location.origin}/qr/scan/${sessionId}`;
         new QRCode(document.getElementById('qrcode'), {
             text: qrUrl,
             width: 200,
             height: 200
         });
-        
-        // Подключаем WebSocket для ожидания сканирования
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        ws = new WebSocket(`${protocol}//${window.location.host}/ws/qr/${sessionId}`);
-        
+
+        // WebSocket для реального времени
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
             if (data.type === 'login_success') {
-                document.getElementById('qrStatus').innerHTML = '✅ Вход выполнен! Перенаправление...';
+                document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
+                document.getElementById('qrStatus').className = 'status confirmed';
                 setTimeout(() => {
                     window.location.href = '/feed';
-                }, 1000);
+                }, 1500);
             }
         };
-        
+
         ws.onerror = function() {
-            document.getElementById('qrStatus').innerHTML = '⚠️ Ошибка соединения';
+            document.getElementById('qrStatus').innerHTML = '⚠️ Ошибка соединения. Используйте обычный вход.';
+            document.getElementById('qrStatus').className = 'status error';
         };
+
+        // Polling на случай проблем с WebSocket
+        checkInterval = setInterval(() => {
+            fetch(`/api/qr/status/${sessionId}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'confirmed') {
+                        clearInterval(checkInterval);
+                        document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
+                        document.getElementById('qrStatus').className = 'status confirmed';
+                        setTimeout(() => {
+                            window.location.href = '/feed';
+                        }, 1500);
+                    }
+                });
+        }, 2000);
+
+        // Очистка при уходе
+        window.addEventListener('beforeunload', () => {
+            if (checkInterval) clearInterval(checkInterval);
+            ws.close();
+        });
     </script>
 </body>
 </html>

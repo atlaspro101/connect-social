@@ -2,7 +2,7 @@ Flask==2.3.3
 gunicorn==21.2.0
 Werkzeug==2.3.7
 requests==2.31.0
-pywebpush==1.14.1
+pyotp==2.9.0
 qrcode==7.4.2
 Pillow==10.0.0
-pyotp==2.9.0
+flask-sock==0.7.0
