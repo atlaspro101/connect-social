@@ -136,8 +136,36 @@
     <script>
         const sessionId = '{{ session_id }}';
         let checkInterval = null;
-        const ws = new WebSocket(`wss://${window.location.host}/ws/qr/${sessionId}`);
-
+        let ws = null;
+        
+        // WebSocket для реального времени
+        try {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/qr/${sessionId}`);
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'login_success') {
+                    document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
+                    document.getElementById('qrStatus').className = 'status confirmed';
+                    
+                    // Очищаем интервал
+                    if (checkInterval) clearInterval(checkInterval);
+                    
+                    // Перенаправляем сразу на feed
+                    setTimeout(() => {
+                        window.location.href = '/feed';
+                    }, 500);
+                }
+            };
+            
+            ws.onerror = function() {
+                console.log('WebSocket error, using polling');
+            };
+        } catch(e) {
+            console.log('WebSocket not available');
+        }
+        
         // Генерируем QR-код
         const qrUrl = `${window.location.origin}/qr/scan/${sessionId}`;
         new QRCode(document.getElementById('qrcode'), {
@@ -145,24 +173,7 @@
             width: 200,
             height: 200
         });
-
-        // WebSocket для реального времени
-        ws.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data.type === 'login_success') {
-                document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
-                document.getElementById('qrStatus').className = 'status confirmed';
-                setTimeout(() => {
-                    window.location.href = '/feed';
-                }, 1500);
-            }
-        };
-
-        ws.onerror = function() {
-            document.getElementById('qrStatus').innerHTML = '⚠️ Ошибка соединения. Используйте обычный вход.';
-            document.getElementById('qrStatus').className = 'status error';
-        };
-
+        
         // Polling на случай проблем с WebSocket
         checkInterval = setInterval(() => {
             fetch(`/api/qr/status/${sessionId}`)
@@ -174,15 +185,15 @@
                         document.getElementById('qrStatus').className = 'status confirmed';
                         setTimeout(() => {
                             window.location.href = '/feed';
-                        }, 1500);
+                        }, 500);
                     }
                 });
         }, 2000);
-
+        
         // Очистка при уходе
         window.addEventListener('beforeunload', () => {
             if (checkInterval) clearInterval(checkInterval);
-            ws.close();
+            if (ws) ws.close();
         });
     </script>
 </body>

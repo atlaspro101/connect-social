@@ -1087,16 +1087,18 @@ def api_qr_confirm():
         qr_sessions[session_id]['status'] = 'confirmed'
         qr_sessions[session_id]['user_id'] = session['user_id']
         
+        # Отправляем через WebSocket
         if session_id in ws_connections:
             try:
                 ws_connections[session_id].send(json.dumps({
                     'type': 'login_success',
-                    'user_id': session['user_id']
+                    'user_id': session['user_id'],
+                    'username': session['username']
                 }))
             except:
                 pass
         
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'user_id': session['user_id'], 'username': session['username']})
     
     return jsonify({'success': False})
 
@@ -1111,6 +1113,7 @@ def api_qr_login(session_id):
             session['is_admin'] = user['is_admin']
             session['is_premium'] = user['is_premium']
             update_last_seen(user['id'])
+            # Перенаправляем сразу на feed
             return redirect(url_for('feed'))
     
     return redirect(url_for('login'))
@@ -1742,6 +1745,147 @@ def api_get_level():
 def api_me():
     user = get_user_by_id(session['user_id'])
     return jsonify({'user': user})
+
+# ========== AI ПОМОЩНИК ДЛЯ ПОСТОВ ==========
+@app.route('/api/ai/improve', methods=['POST'])
+@login_required
+def ai_improve_text():
+    data = request.get_json()
+    original_text = data.get('text', '')
+    api_key = data.get('api_key', '')
+    
+    if not original_text:
+        return jsonify({'success': False, 'error': 'Текст не указан'})
+    
+    # Если нет своего ключа, используем ключ по умолчанию
+    if not api_key:
+        api_key = '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'
+    
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Улучшенный промпт для AI
+    prompt = f"""Ты профессиональный копирайтер и редактор. Улучши следующий текст для поста в социальной сети.
+
+Правила:
+1. Сделай текст более живым и интересным
+2. Добавь 1-2 уместных эмодзи в начало или конец
+3. Исправь грамматические и пунктуационные ошибки
+4. Сохрани основной смысл и настроение
+5. Не делай текст слишком длинным (максимум 300 символов)
+6. НЕ добавляй лишние слова типа "Улучшенный текст:"
+
+Вот исходный текст: "{original_text}"
+
+Напиши только улучшенный текст, без пояснений:"""
+    
+    payload = {
+        'model': 'google/gemma-4-31b-it:free',
+        'messages': [
+            {'role': 'system', 'content': 'Ты профессиональный редактор текстов для социальных сетей. Отвечаешь только улучшенным текстом, без лишних слов.'},
+            {'role': 'user', 'content': prompt}
+        ],
+        'max_tokens': 200,
+        'temperature': 0.8,
+        'top_p': 0.9
+    }
+    
+    try:
+        response = requests.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            improved_text = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if improved_text:
+                # Очищаем от лишних кавычек и пояснений
+                improved_text = improved_text.strip()
+                improved_text = improved_text.strip('"').strip("'")
+                # Убираем возможные префиксы
+                prefixes = ['Вот улучшенный текст:', 'Улучшенный текст:', 'Текст:', 'Результат:']
+                for prefix in prefixes:
+                    if improved_text.startswith(prefix):
+                        improved_text = improved_text[len(prefix):].strip()
+                
+                if len(improved_text) > 10 and improved_text != original_text:
+                    return jsonify({'success': True, 'improved_text': improved_text})
+        
+        # Если API не сработал, используем локальное улучшение
+        improved_text = local_text_improvement(original_text)
+        return jsonify({'success': True, 'improved_text': improved_text})
+        
+    except Exception as e:
+        print(f"AI Error: {e}")
+        improved_text = local_text_improvement(original_text)
+        return jsonify({'success': True, 'improved_text': improved_text})
+
+def local_text_improvement(text):
+    """Локальное улучшение текста без API"""
+    import random
+    
+    # Список эмодзи для разных случаев
+    happy_emojis = ['✨', '🌟', '💫', '⭐', '🔥', '💪', '🎯', '💎']
+    cool_emojis = ['😎', '🚀', '💯', '👌', '⚡', '🎨', '💡']
+    friendly_emojis = ['😊', '🤗', '💕', '🌸', '🌈', '🎉', '🥳']
+    
+    # Определяем настроение текста
+    happy_words = ['рад', 'счастье', 'отлично', 'класс', 'супер', 'здорово', 'праздник']
+    cool_words = ['круто', 'мощно', 'топ', 'ого', 'вау', 'зачет', 'клёво']
+    
+    mood = 'happy'
+    for word in cool_words:
+        if word in text.lower():
+            mood = 'cool'
+            break
+    
+    # Выбираем эмодзи в зависимости от настроения
+    if mood == 'happy':
+        emojis = happy_emojis
+    elif mood == 'cool':
+        emojis = cool_emojis
+    else:
+        emojis = friendly_emojis
+    
+    # Добавляем случайное эмодзи
+    selected_emoji = random.choice(emojis)
+    
+    # Делаем первую букву заглавной
+    text = text.capitalize()
+    
+    # Добавляем восклицательный знак если нет знаков препинания
+    if not any(c in text for c in '.!?'):
+        text += '!'
+    
+    # Добавляем эмодзи в начало или конец
+    if random.choice([True, False]):
+        text = selected_emoji + ' ' + text
+    else:
+        text = text + ' ' + selected_emoji
+    
+    # Исправляем типичные ошибки (можно расширять)
+    corrections = {
+        'привет!': 'Привет! 👋',
+        'всем привет': '👋 Всем привет!',
+        'спасибо': 'Спасибо! 🙏',
+        'круто': 'Круто! 🔥',
+        'отлично': 'Отлично! ✨',
+        'здорово': 'Здорово! 💫',
+        'ого': 'Ого! 😲',
+        'вау': 'Вау! 😍'
+    }
+    
+    for old, new in corrections.items():
+        if old in text.lower():
+            text = text.replace(old, new)
+            break
+    
+    return text
 
 @app.route('/health')
 def health():

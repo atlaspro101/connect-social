@@ -10,7 +10,6 @@
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
                    || window.innerWidth <= 768;
         }
-        // Загружаем правильные стили в зависимости от устройства
         if (isMobile()) {
             document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
             document.write('<style>.sidebar, .sidebar-toggle { display: none !important; } .hamburger-btn { display: flex !important; }</style>');
@@ -27,8 +26,14 @@
         .file-preview-item { position: relative; }
         .file-preview-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
         .remove-file { position: absolute; top: -8px; right: -8px; background: #ff4757; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
+
+        @keyframes fadeOut {
+        0% { opacity: 1; transform: translateY(0); }
+        70% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-20px); visibility: hidden; }
+    }
         
-        /* Премиум стили - фиолетово-белый */
+        /* Премиум стили */
         .premium-nick {
             background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6);
             background-size: 200% 100%;
@@ -56,6 +61,69 @@
             font-size: 16px;
         }
         .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+
+        /* AI помощник */
+        .ai-assistant {
+            background: linear-gradient(135deg, rgba(102,126,234,0.2), rgba(118,75,162,0.2));
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .ai-assistant span {
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+        }
+        .ai-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .ai-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 10px rgba(102,126,234,0.4);
+        }
+        .ai-btn.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .api-key-input {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .api-key-input input {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 30px;
+            padding: 6px 12px;
+            color: white;
+            font-size: 12px;
+            width: 200px;
+        }
+        .api-key-input input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+        .api-key-input button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -115,6 +183,17 @@
             <div class="create-post">
                 <form method="POST" enctype="multipart/form-data" id="postForm">
                     <textarea name="content" placeholder="Что нового?" rows="3" id="postContent"></textarea>
+                    
+                    <!-- AI Ассистент -->
+                    <div class="ai-assistant">
+                        <span>✨ AI поможет улучшить текст поста</span>
+                        <div class="api-key-input">
+                            <input type="text" id="apiKeyInput" placeholder="API ключ (опционально)" value="">
+                            <button onclick="saveApiKey()">💾 Сохранить</button>
+                        </div>
+                        <button type="button" class="ai-btn" id="aiImproveBtn" onclick="improveWithAI()">✨ Улучшить текст</button>
+                    </div>
+                    
                     <div class="drop-zone" id="dropZone" onclick="document.getElementById('mediaInput').click()">
                         <label>📎 Перетащите файл сюда или нажмите для выбора</label>
                         <input type="file" name="media" accept="image/*,image/gif,audio/*" id="mediaInput" multiple>
@@ -180,6 +259,87 @@
     
     <script>
         let autoRefreshInterval = null;
+        
+        // Сохранение API ключа
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKeyInput').value;
+            if (apiKey) {
+                localStorage.setItem('openrouter_api_key', apiKey);
+                alert('API ключ сохранен!');
+            } else {
+                localStorage.removeItem('openrouter_api_key');
+                alert('API ключ удален');
+            }
+        }
+        
+        // Загрузка сохраненного API ключа
+        function loadApiKey() {
+            const savedKey = localStorage.getItem('openrouter_api_key');
+            if (savedKey) {
+                document.getElementById('apiKeyInput').value = savedKey;
+            }
+        }
+        
+        async function improveWithAI() {
+    const textarea = document.getElementById('postContent');
+    const originalText = textarea.value.trim();
+    
+    if (!originalText) {
+        alert('Напишите текст для улучшения ✍️');
+        return;
+    }
+    
+    const btn = document.getElementById('aiImproveBtn');
+    const originalTextBtn = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> ✨ Обработка...';
+    btn.classList.add('loading');
+    btn.disabled = true;
+    
+    let apiKey = localStorage.getItem('openrouter_api_key');
+    if (!apiKey) {
+        // Используем ключ по умолчанию
+        apiKey = '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';
+    }
+    
+    try {
+        const response = await fetch('/api/ai/improve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: originalText,
+                api_key: apiKey
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.improved_text && data.improved_text !== originalText) {
+            textarea.value = data.improved_text;
+            // Анимация успеха
+            textarea.style.border = '2px solid #4cd964';
+            textarea.style.transition = 'all 0.3s';
+            setTimeout(() => {
+                textarea.style.border = '';
+            }, 2000);
+            
+            // Показываем сообщение об успехе
+            const successMsg = document.createElement('div');
+            successMsg.textContent = '✅ Текст улучшен!';
+            successMsg.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#4cd964;padding:10px 20px;border-radius:30px;color:white;z-index:10000;animation:fadeOut 2s forwards';
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 2000);
+        } else {
+            alert('⚠️ Не удалось улучшить текст. Попробуйте еще раз или напишите свой вариант.');
+        }
+    } catch (error) {
+        console.error('AI Error:', error);
+        alert('❌ Ошибка соединения с AI сервисом. Попробуйте позже.');
+    } finally {
+        btn.innerHTML = originalTextBtn;
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    }
+}
         
         function toggleSidebar() {
             if (window.innerWidth > 768) {
@@ -270,6 +430,9 @@
         function removeFile(index){selectedFiles.splice(index,1);const dt=new DataTransfer();selectedFiles.forEach(f=>dt.items.add(f));mediaInput.files=dt.files;updateFilePreview();}
         document.getElementById('postForm').addEventListener('submit',function(e){if(!document.getElementById('postContent').value.trim()&&selectedFiles.length===0){e.preventDefault();alert('Напишите что-нибудь или прикрепите файл!');}});
         document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeLightbox();closeSearchModal();closePremiumModal();}});
+        
+        // Загрузка сохраненного API ключа
+        loadApiKey();
     </script>
 </body>
 </html>
