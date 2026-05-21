@@ -35,30 +35,20 @@ def hash_password(password):
 
 # ========== KEEP-ALIVE ФУНКЦИЯ ==========
 def keep_alive():
-    url = os.environ.get('RENDER_EXTERNAL_URL', 'http://localhost:5000')
-    if url == 'http://localhost:5000':
-        url = 'https://connectss-mapb.onrender.com'
-    
+    url = 'https://connectss-mapb.onrender.com'
     while True:
         try:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"[KEEP-ALIVE] {current_time} - Сервер активен")
-            
-            if 'onrender.com' in url:
-                response = requests.get(url, timeout=10)
-                print(f"[KEEP-ALIVE] Пинг успешен - статус: {response.status_code}")
-            
+            print(f"[KEEP-ALIVE] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Сервер активен")
+            requests.get(url, timeout=10)
         except Exception as e:
-            print(f"[KEEP-ALIVE] Ошибка пинга: {e}")
-        
-        time.sleep(10)
+            print(f"[KEEP-ALIVE] Ошибка: {e}")
+        time.sleep(60)
 
 def start_keep_alive():
-    keep_alive_thread = threading.Thread(target=keep_alive, daemon=True)
-    keep_alive_thread.start()
-    print("[KEEP-ALIVE] Поток поддержания активности запущен!")
+    thread = threading.Thread(target=keep_alive, daemon=True)
+    thread.start()
 
-# ========== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ==========
+# ========== ФИЛЬТРЫ ==========
 @app.template_filter('format_time')
 def format_time_filter(date_value):
     if not date_value:
@@ -144,14 +134,12 @@ def init_db():
             ended_at TIMESTAMP
         )''')
         
-        # Создаем админа
         admin_pass = hash_password("fastyk26tyr")
         c.execute('''INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) 
                      VALUES (?, ?, ?, ?, ?, ?)''',
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
         conn.commit()
     
-    # Добавляем колонку is_premium если её нет
     try:
         c.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
         conn.commit()
@@ -239,11 +227,6 @@ def get_all_posts():
         result = []
         for post in posts:
             post_dict = dict(post)
-            if isinstance(post_dict.get('created_at'), str):
-                try:
-                    post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
-                except:
-                    post_dict['created_at'] = datetime.now()
             result.append(post_dict)
         return result
     except:
@@ -260,16 +243,7 @@ def get_user_posts(user_id):
                      ORDER BY posts.created_at DESC''', (user_id,))
         posts = c.fetchall()
         conn.close()
-        result = []
-        for post in posts:
-            post_dict = dict(post)
-            if isinstance(post_dict.get('created_at'), str):
-                try:
-                    post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
-                except:
-                    post_dict['created_at'] = datetime.now()
-            result.append(post_dict)
-        return result
+        return [dict(post) for post in posts]
     except:
         return []
 
@@ -295,16 +269,7 @@ def get_comments(post_id):
                      ORDER BY comments.created_at ASC''', (post_id,))
         comments = c.fetchall()
         conn.close()
-        result = []
-        for comment in comments:
-            comment_dict = dict(comment)
-            if isinstance(comment_dict.get('created_at'), str):
-                try:
-                    comment_dict['created_at'] = datetime.strptime(comment_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
-                except:
-                    comment_dict['created_at'] = datetime.now()
-            result.append(comment_dict)
-        return result
+        return [dict(comment) for comment in comments]
     except:
         return []
 
@@ -524,7 +489,7 @@ def make_premium(user_id):
     except:
         return False
 
-# ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ (упрощенные) ==========
+# ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ ==========
 def create_call(caller_id, receiver_id, call_type):
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
@@ -539,7 +504,7 @@ def update_call_status(call_id, status):
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     c.execute("UPDATE calls SET status = ?, ended_at = ? WHERE id = ?", 
-              (status, datetime.now() if status in ['ended', 'missed'] else None, call_id))
+              (status, datetime.now() if status in ['ended', 'missed', 'active'] else None, call_id))
     conn.commit()
     conn.close()
 
@@ -779,7 +744,6 @@ def add_comment_route(post_id):
 @login_required
 def like_post_route(post_id):
     if has_liked_post(post_id, session['user_id']):
-        unlike_post(post_id, session['user_id'])
         return jsonify({'liked': False, 'likes_count': 0})
     else:
         like_post(post_id, session['user_id'])
@@ -865,7 +829,6 @@ def api_call_start():
     if not receiver:
         return jsonify({'success': False, 'error': 'Пользователь не найден'})
     
-    # Проверяем, есть ли активный звонок
     active_call = get_active_call(receiver_id)
     if active_call:
         return jsonify({'success': False, 'error': 'Пользователь уже в звонке'})
@@ -898,7 +861,7 @@ def api_call_accept():
     
     if call and call['status'] == 'waiting':
         update_call_status(call_id, 'active')
-        return jsonify({'success': True, 'call': call})
+        return jsonify({'success': True, 'call_type': call['call_type']})
     return jsonify({'success': False})
 
 @app.route('/api/call/reject', methods=['POST'])
@@ -936,11 +899,7 @@ def call_page(call_id):
 
 @app.route('/health')
 def health():
-    return jsonify({
-        'status': 'ok',
-        'timestamp': datetime.now().isoformat(),
-        'uptime': 'Running'
-    })
+    return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
 @app.route('/logout')
 def logout():
@@ -951,21 +910,7 @@ def logout():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
-# ========== ЗАПУСК ==========
 if __name__ == '__main__':
     start_keep_alive()
-    
-    print("\n" + "="*50)
-    print("🚀 CONNECT SOCIAL NETWORK STARTED")
-    print("="*50)
-    print(f"📅 Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"🌐 Локальный адрес: http://localhost:5000")
-    print(f"💾 База данных: {DATABASE_PATH}")
-    print(f"📁 Папка загрузок: {UPLOAD_FOLDER}")
-    print("="*50)
-    print("[KEEP-ALIVE] Сервер будет пинговать себя каждые 10 секунд")
-    print("[ЗВОНКИ] Функция звонков активирована")
-    print("="*50 + "\n")
-    
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
