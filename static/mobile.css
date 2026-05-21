@@ -1,12 +1,8 @@
 /* ============================================
    CONNECT - МОБИЛЬНЫЙ ИНТЕРФЕЙС
-   Полная версия 1500+ строк
-   Каждая страница и элемент имеют свои стили
-   Стиль: Неоморфизм + Брутализм
-   Цвета: Синяя гамма с акцентами
+   Полная версия с гамбургер меню
    ============================================ */
 
-/* ========== 1. RESET & БАЗОВЫЕ СТИЛИ (0-100) ========== */
 * {
     margin: 0;
     padding: 0;
@@ -19,89 +15,230 @@ body {
     background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
     min-height: 100vh;
     color: #ffffff;
-    padding-bottom: 75px;
-    position: relative;
     overflow-x: hidden;
 }
 
-/* ========== 2. НИЖНЕЕ МЕНЮ (101-200) ========== */
-.bottom-nav {
+/* ========== ГАМБУРГЕР МЕНЮ (МОБИЛЬНОЕ) ========== */
+.hamburger-btn {
     position: fixed;
-    bottom: 0;
+    top: 16px;
+    left: 16px;
+    width: 44px;
+    height: 44px;
+    background: rgba(20, 30, 45, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1003;
+    transition: all 0.3s;
+}
+
+.hamburger-btn span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: white;
+    position: relative;
+    transition: all 0.3s;
+}
+
+.hamburger-btn span::before,
+.hamburger-btn span::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 2px;
+    background: white;
+    transition: all 0.3s;
+}
+
+.hamburger-btn span::before {
+    transform: translateY(-8px);
+}
+
+.hamburger-btn span::after {
+    transform: translateY(8px);
+}
+
+.hamburger-btn.open span {
+    background: transparent;
+}
+
+.hamburger-btn.open span::before {
+    transform: rotate(45deg);
+}
+
+.hamburger-btn.open span::after {
+    transform: rotate(-45deg);
+}
+
+.hamburger-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: rgba(15, 20, 35, 0.98);
+    backdrop-filter: blur(20px);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1002;
+    border-right: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.hamburger-menu.open {
+    transform: translateX(0);
+}
+
+.hamburger-overlay {
+    position: fixed;
+    top: 0;
     left: 0;
     right: 0;
-    background: rgba(15, 20, 35, 0.95);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(102, 126, 234, 0.3);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 8px 16px 20px;
-    z-index: 1000;
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    display: none;
 }
 
-.nav-item {
+.hamburger-overlay.active {
+    display: block;
+}
+
+/* Меню внутри гамбургера */
+.menu-header {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 50px;
+}
+
+.menu-logo {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.menu-user {
+    margin-top: 20px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+
+.menu-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.menu-user-info {
+    flex: 1;
+    text-align: left;
+}
+
+.menu-username {
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
     align-items: center;
     gap: 4px;
-    text-decoration: none;
-    color: rgba(255, 255, 255, 0.6);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    padding: 8px 16px;
-    border-radius: 40px;
-    position: relative;
 }
 
-.nav-item span:first-child {
-    font-size: 24px;
-    transition: transform 0.2s;
-}
-
-.nav-item span:last-child {
+.menu-status {
     font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.3px;
+    color: #4cd964;
 }
 
-.nav-item.active {
+.menu-nav {
+    padding: 20px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s;
+}
+
+.menu-item.active {
+    background: rgba(102, 126, 234, 0.2);
     color: #667eea;
-    background: rgba(102, 126, 234, 0.15);
 }
 
-.nav-item.active span:first-child {
-    transform: translateY(-2px);
+.menu-item:active {
+    background: rgba(255, 255, 255, 0.1);
 }
 
-.nav-item:active {
-    transform: scale(0.95);
+/* Контент для мобильных */
+.mobile-content {
+    padding: 70px 16px 20px;
+    min-height: 100vh;
 }
 
-.nav-badge {
-    position: absolute;
-    top: -2px;
-    right: 8px;
-    background: #ff4757;
-    color: white;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 20px;
-    min-width: 18px;
-    text-align: center;
-}
-
-/* ========== 3. СТИЛИ ДЛЯ СТРАНИЦЫ ЛЕНТА (FEED) (201-400) ========== */
+/* ========== КОНТЕЙНЕРЫ ========== */
 .feed-container {
     max-width: 600px;
     margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 30px;
+    padding: 70px 16px 80px;
 }
 
-/* Вкладки ленты */
+.profile-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 70px 16px 80px;
+}
+
+.search-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 70px 16px 80px;
+}
+
+.chats-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 70px 16px 80px;
+}
+
+/* ========== АВАТАРЫ ========== */
+.avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2.5px solid #667eea;
+}
+
+.avatar-placeholder {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+}
+
+/* ========== ВКЛАДКИ ЛЕНТЫ ========== */
 .feed-tabs {
     display: flex;
     gap: 20px;
@@ -134,84 +271,73 @@ body {
     right: 0;
     height: 2px;
     background: #667eea;
-    border-radius: 2px;
 }
 
-/* Карточка создания поста */
+/* ========== СОЗДАНИЕ ПОСТА ========== */
 .create-post {
     background: rgba(25, 35, 50, 0.7);
     backdrop-filter: blur(12px);
-    border-radius: 24px;
+    border-radius: 20px;
     padding: 16px;
     margin-bottom: 20px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .create-post textarea {
     width: 100%;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 14px 16px;
+    border-radius: 16px;
+    padding: 12px 14px;
     color: white;
-    font-size: 15px;
+    font-size: 14px;
     resize: vertical;
     font-family: inherit;
-    transition: all 0.3s;
     min-height: 80px;
 }
 
 .create-post textarea:focus {
     outline: none;
     border-color: #667eea;
-    background: rgba(0, 0, 0, 0.4);
 }
 
-.create-post textarea::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+.file-input {
+    margin: 12px 0;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    text-align: center;
 }
 
-/* Карточка поста */
+/* ========== КАРТОЧКА ПОСТА ========== */
 .post-card {
     background: rgba(25, 35, 50, 0.7);
     backdrop-filter: blur(12px);
-    border-radius: 24px;
+    border-radius: 20px;
     margin-bottom: 16px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: all 0.3s;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.post-card:active {
-    transform: scale(0.99);
-}
-
-/* Шапка поста */
 .post-header {
-    padding: 16px;
+    padding: 14px;
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.post-user-info {
-    flex: 1;
-}
-
 .post-author-name {
     font-weight: 700;
-    font-size: 15px;
-    color: white;
-    text-decoration: none;
-    display: inline-block;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .post-author-username {
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.5);
-    margin-top: 2px;
 }
 
 .post-time {
@@ -220,76 +346,26 @@ body {
     margin-top: 2px;
 }
 
-/* Контент поста */
 .post-content {
-    padding: 0 16px 16px;
-    font-size: 15px;
+    padding: 0 14px 14px;
+    font-size: 14px;
     line-height: 1.5;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-/* Медиа в посте */
-.post-media {
-    margin: 0;
-    background: #000;
-    max-height: 400px;
-    overflow: hidden;
 }
 
 .post-media img {
     width: 100%;
-    max-height: 400px;
+    max-height: 350px;
     object-fit: cover;
-    cursor: pointer;
-    transition: opacity 0.3s;
 }
 
-.post-media img:active {
-    opacity: 0.9;
-}
-
-/* Действия над постом */
 .post-actions {
-    padding: 12px 16px;
+    padding: 12px 14px;
     display: flex;
-    gap: 24px;
+    gap: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .action-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
-    font-weight: 500;
-    padding: 8px 16px;
-    border-radius: 40px;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-.action-btn:active {
-    background: rgba(255, 255, 255, 0.1);
-    transform: scale(0.96);
-}
-
-.action-btn.liked {
-    color: #ff4757;
-}
-
-/* Статистика поста */
-.post-stats {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 12px 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.post-stat {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -299,90 +375,72 @@ body {
     font-size: 13px;
     padding: 6px 12px;
     border-radius: 30px;
-    cursor: pointer;
-    transition: all 0.2s;
 }
 
-.post-stat:active {
-    background: rgba(255, 255, 255, 0.08);
+.action-btn:active {
+    background: rgba(255, 255, 255, 0.1);
 }
 
-.post-views {
-    margin-left: auto;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.4);
+.action-btn.liked {
+    color: #ff4757;
 }
 
-/* ========== 4. СТИЛИ ДЛЯ СТРАНИЦЫ ПРОФИЛЬ (PROFILE) (401-600) ========== */
-.profile-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 80px;
-}
-
-/* Шапка профиля */
+/* ========== ПРОФИЛЬ ========== */
 .profile-header {
-    text-align: center;
-    padding: 24px;
-    background: rgba(25, 35, 50, 0.6);
+    background: rgba(20, 30, 45, 0.6);
     backdrop-filter: blur(12px);
-    border-radius: 32px;
-    margin-bottom: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 24px;
 }
 
-/* Баннер профиля */
 .profile-banner {
     height: 120px;
     background: linear-gradient(135deg, #667eea, #764ba2);
-    border-radius: 28px 28px 0 0;
-    margin: -24px -24px 0 -24px;
 }
 
-/* Аватар профиля */
 .profile-avatar-wrapper {
+    position: relative;
     margin-top: -50px;
-    margin-bottom: 16px;
+    margin-left: 20px;
 }
 
 .profile-avatar-large {
-    width: 100px;
-    height: 100px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid #667eea;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    background: #1a1a2e;
+    border: 3px solid rgba(20, 30, 45, 0.95);
 }
 
-/* Информация профиля */
-.profile-name {
-    font-size: 22px;
+.profile-info {
+    padding: 15px 20px 20px;
+}
+
+.profile-display-name {
+    font-size: 20px;
     font-weight: 700;
-    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .profile-username {
-    font-size: 14px;
+    font-size: 13px;
     color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 12px;
 }
 
 .profile-bio {
-    font-size: 14px;
+    font-size: 13px;
     color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 20px;
-    line-height: 1.5;
-    padding: 0 16px;
+    margin: 10px 0;
 }
 
-/* Статистика профиля */
 .profile-stats {
     display: flex;
-    justify-content: center;
-    gap: 32px;
-    margin-bottom: 20px;
+    gap: 25px;
+    margin: 15px 0;
 }
 
 .stat {
@@ -390,32 +448,37 @@ body {
 }
 
 .stat-number {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: #667eea;
 }
 
 .stat-label {
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.6);
 }
 
-/* Кнопки профиля */
+.profile-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 15px 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
 .profile-actions {
     display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
+    gap: 10px;
+    flex-direction: column;
 }
 
 .profile-action-btn {
-    padding: 10px 24px;
-    border-radius: 40px;
+    padding: 10px 20px;
+    border-radius: 30px;
     font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s;
-    border: none;
+    font-size: 13px;
+    text-align: center;
 }
 
 .profile-action-btn.primary {
@@ -429,28 +492,6 @@ body {
     color: white;
 }
 
-.profile-action-btn:active {
-    transform: scale(0.96);
-}
-
-/* Мета информация профиля */
-.profile-meta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 16px;
-    margin: 16px 0;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* Табы профиля */
 .profile-tabs {
     display: flex;
     gap: 20px;
@@ -462,12 +503,9 @@ body {
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.6);
-    font-size: 14px;
-    font-weight: 500;
-    padding: 12px 0;
+    font-size: 13px;
+    padding: 10px 0;
     cursor: pointer;
-    transition: all 0.3s;
-    flex: 1;
 }
 
 .profile-tab.active {
@@ -475,7 +513,6 @@ body {
     border-bottom: 2px solid #667eea;
 }
 
-/* Сетка постов в профиле */
 .profile-posts-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -484,15 +521,9 @@ body {
 
 .profile-post-card {
     aspect-ratio: 1;
-    background: rgba(25, 35, 50, 0.6);
+    background: rgba(20, 30, 45, 0.6);
     border-radius: 12px;
     overflow: hidden;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.profile-post-card:active {
-    transform: scale(0.98);
 }
 
 .profile-post-image {
@@ -501,44 +532,21 @@ body {
     object-fit: cover;
 }
 
-/* ========== 5. СТИЛИ ДЛЯ СТРАНИЦЫ ПОИСК (SEARCH) (601-700) ========== */
-.search-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 80px;
-}
-
-.search-header {
-    margin-bottom: 20px;
-}
-
+/* ========== ПОИСК ========== */
 .search-input {
     width: 100%;
-    padding: 14px 20px;
+    padding: 14px 18px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 40px;
     color: white;
-    font-size: 16px;
-    transition: all 0.3s;
+    font-size: 15px;
+    margin-bottom: 20px;
 }
 
 .search-input:focus {
     outline: none;
     border-color: #667eea;
-    background: rgba(0, 0, 0, 0.4);
-}
-
-.search-input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-}
-
-/* Результаты поиска */
-.search-results {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
 }
 
 .search-result-card {
@@ -549,18 +557,12 @@ body {
     background: rgba(25, 35, 50, 0.6);
     backdrop-filter: blur(12px);
     border-radius: 20px;
-    transition: all 0.3s;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.search-result-card:active {
-    transform: scale(0.98);
-    background: rgba(25, 35, 50, 0.8);
+    margin-bottom: 12px;
 }
 
 .search-result-avatar {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     object-fit: cover;
 }
@@ -571,8 +573,10 @@ body {
 
 .search-result-name {
     font-weight: 700;
-    font-size: 16px;
-    margin-bottom: 2px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .search-result-username {
@@ -580,33 +584,7 @@ body {
     color: rgba(255, 255, 255, 0.5);
 }
 
-.search-result-bio {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 4px;
-}
-
-/* ========== 6. СТИЛИ ДЛЯ СТРАНИЦЫ ЧАТЫ (CHATS) (701-800) ========== */
-.chats-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 80px;
-}
-
-.chats-header {
-    margin-bottom: 20px;
-}
-
-.chats-header h1 {
-    font-size: 28px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-/* Список чатов */
+/* ========== ЧАТЫ ========== */
 .chat-list {
     display: flex;
     flex-direction: column;
@@ -622,27 +600,19 @@ body {
     backdrop-filter: blur(12px);
     border-radius: 20px;
     text-decoration: none;
-    transition: all 0.3s;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.chat-item:active {
-    transform: scale(0.98);
-    background: rgba(25, 35, 50, 0.8);
 }
 
 .chat-avatar {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     object-fit: cover;
     background: linear-gradient(135deg, #667eea, #764ba2);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: bold;
-    color: white;
 }
 
 .chat-info {
@@ -651,71 +621,50 @@ body {
 
 .chat-name {
     font-weight: 700;
-    font-size: 16px;
-    color: white;
-    margin-bottom: 4px;
+    font-size: 15px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .chat-last-message {
-    font-size: 13px;
+    font-size: 12px;
     color: rgba(255, 255, 255, 0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
 }
 
 .chat-time {
-    font-size: 11px;
+    font-size: 10px;
     color: rgba(255, 255, 255, 0.4);
 }
 
-/* Онлайн индикатор */
-.online-indicator {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #4cd964;
-    display: inline-block;
-}
-
-.offline-indicator {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    display: inline-block;
-}
-
-/* ========== 7. СТИЛИ ДЛЯ СТРАНИЦЫ ЧАТ (CHAT) (801-900) ========== */
+/* ========== СТРАНИЦА ЧАТА ========== */
 .chat-container {
-    max-width: 600px;
-    margin: 0 auto;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: rgba(15, 20, 35, 0.9);
+    background: rgba(15, 20, 35, 0.95);
 }
 
-/* Шапка чата */
 .chat-header {
     padding: 16px;
     background: rgba(25, 35, 50, 0.95);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     gap: 12px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
 }
 
 .chat-header-avatar {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    object-fit: cover;
 }
 
 .chat-header-info {
@@ -728,39 +677,31 @@ body {
 }
 
 .chat-header-status {
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255, 255, 255, 0.5);
 }
 
-/* Область сообщений */
 .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 80px 16px 20px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* Сообщение */
 .message {
     display: flex;
-    margin-bottom: 4px;
 }
 
 .message.sent {
     justify-content: flex-end;
 }
 
-.message.received {
-    justify-content: flex-start;
-}
-
 .message-bubble {
     max-width: 75%;
     padding: 10px 14px;
     border-radius: 20px;
-    word-wrap: break-word;
 }
 
 .message.sent .message-bubble {
@@ -776,27 +717,21 @@ body {
 }
 
 .message-time {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.4);
     margin-top: 4px;
     text-align: right;
 }
 
-/* Эмодзи в сообщениях */
-.message-emoji {
-    font-size: 32px;
-    margin: 4px 0;
-}
-
-/* Поле ввода сообщения */
 .message-input-container {
     padding: 12px 16px;
     background: rgba(25, 35, 50, 0.95);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     gap: 12px;
-    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
 }
 
 .message-input {
@@ -804,16 +739,9 @@ body {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 30px;
-    padding: 12px 18px;
+    padding: 12px 16px;
     color: white;
-    font-size: 15px;
-    resize: none;
-    font-family: inherit;
-}
-
-.message-input:focus {
-    outline: none;
-    border-color: #667eea;
+    font-size: 14px;
 }
 
 .send-btn {
@@ -825,478 +753,42 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s;
 }
 
-.send-btn:active {
-    transform: scale(0.95);
-}
-
-/* ========== 8. СТИЛИ ДЛЯ СТРАНИЦЫ ПОСТ (POST DETAIL) (901-1000) ========== */
-.post-detail-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 80px;
-}
-
-/* Комментарии */
-.comments-section {
-    margin-top: 24px;
-}
-
-.comments-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comment {
-    background: rgba(25, 35, 50, 0.5);
-    backdrop-filter: blur(8px);
-    border-radius: 20px;
-    padding: 14px;
-    margin-bottom: 12px;
-    transition: all 0.3s;
-}
-
-.comment:hover {
-    background: rgba(25, 35, 50, 0.7);
-}
-
-.comment-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.comment-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.comment-author {
-    font-weight: 600;
-    font-size: 13px;
+/* ========== КНОПКИ И ПОЛЯ ========== */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    padding: 12px 20px;
+    border-radius: 30px;
     color: white;
-}
-
-.comment-time {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-left: auto;
-}
-
-.comment-content {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.85);
-    margin-left: 46px;
-    line-height: 1.4;
-}
-
-/* Форма добавления комментария */
-.add-comment-form {
-    margin-top: 20px;
-    background: rgba(25, 35, 50, 0.6);
-    backdrop-filter: blur(12px);
-    border-radius: 20px;
-    padding: 16px;
-}
-
-.add-comment-form textarea {
+    font-weight: 600;
     width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+}
+
+.input-field {
+    width: 100%;
     padding: 12px 16px;
-    color: white;
-    font-size: 14px;
-    resize: vertical;
-    font-family: inherit;
-    margin-bottom: 12px;
-}
-
-/* ========== 9. СТИЛИ ДЛЯ АДМИНКИ (ADMIN) (1001-1100) ========== */
-.admin-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: 80px;
-}
-
-.admin-header {
-    margin-bottom: 24px;
-}
-
-.admin-header h1 {
-    font-size: 28px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #ff4757, #667eea);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-/* Статистика админки */
-.admin-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    margin-bottom: 24px;
-}
-
-.stat-card {
-    background: rgba(25, 35, 50, 0.6);
-    backdrop-filter: blur(12px);
-    border-radius: 20px;
-    padding: 16px;
-    text-align: center;
-}
-
-.stat-card .value {
-    font-size: 32px;
-    font-weight: 700;
-    color: #667eea;
-}
-
-.stat-card .label {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 4px;
-}
-
-/* Список пользователей в админке */
-.admin-users-list {
-    margin-bottom: 24px;
-}
-
-.admin-section-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 16px;
-}
-
-.admin-user-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px;
-    background: rgba(25, 35, 50, 0.5);
-    border-radius: 16px;
-    margin-bottom: 8px;
-}
-
-.admin-user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.admin-user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.admin-user-name {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.admin-user-username {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.admin-user-status {
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 20px;
-}
-
-.admin-user-status.banned {
-    background: rgba(255, 71, 87, 0.2);
-    color: #ff4757;
-}
-
-.admin-user-status.active {
-    background: rgba(76, 217, 100, 0.2);
-    color: #4cd964;
-}
-
-/* Список постов в админке */
-.admin-posts-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.admin-post-item {
-    background: rgba(25, 35, 50, 0.5);
-    border-radius: 16px;
-    padding: 12px;
-}
-
-.admin-post-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.admin-post-author {
-    font-weight: 600;
-    font-size: 13px;
-}
-
-.admin-post-content {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 8px;
-}
-
-.admin-delete-btn {
-    background: rgba(255, 71, 87, 0.2);
-    border: none;
-    color: #ff4757;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-/* ========== 10. СТИЛИ ДЛЯ АУТЕНТИФИКАЦИИ (LOGIN/REGISTER) (1101-1200) ========== */
-.auth-container {
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 32px 20px;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-}
-
-.auth-card {
-    background: rgba(25, 35, 50, 0.7);
-    backdrop-filter: blur(20px);
-    border-radius: 32px;
-    padding: 32px 24px;
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.auth-logo {
-    text-align: center;
-    margin-bottom: 32px;
-}
-
-.auth-logo h1 {
-    font-size: 36px;
-    font-weight: 800;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.auth-title {
-    text-align: center;
-    margin-bottom: 24px;
-}
-
-.auth-title h2 {
-    font-size: 24px;
-    font-weight: 700;
-}
-
-.auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.auth-input {
-    width: 100%;
-    padding: 14px 18px;
     background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 30px;
     color: white;
-    font-size: 15px;
-    transition: all 0.3s;
 }
 
-.auth-input:focus {
-    outline: none;
-    border-color: #667eea;
-    background: rgba(0, 0, 0, 0.4);
-}
-
-.auth-input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-}
-
-.auth-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border: none;
-    padding: 14px;
-    border-radius: 30px;
-    color: white;
-    font-weight: 600;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.3s;
-    margin-top: 8px;
-}
-
-.auth-btn:active {
-    transform: scale(0.97);
-}
-
-.auth-link {
-    text-align: center;
-    margin-top: 24px;
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.auth-link a {
-    color: #667eea;
-    text-decoration: none;
-}
-
-/* Поля для регистрации */
-.auth-row {
-    display: flex;
-    gap: 12px;
-}
-
-.auth-row .auth-input {
-    flex: 1;
-}
-
-.gender-group {
-    display: flex;
-    gap: 16px;
-    margin: 8px 0;
-}
-
-.gender-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
-}
-
-/* ========== 11. ОБЩИЕ КОМПОНЕНТЫ (1201-1300) ========== */
-/* Аватары */
-.avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2.5px solid #667eea;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.avatar-small {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #667eea;
-}
-
-.avatar-large {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #667eea;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
-.avatar-placeholder {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    display: flex;
+/* ========== БЕЙДЖИ ========== */
+.verified-badge {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
+    width: 18px;
+    height: 18px;
+    background: #667eea;
+    border-radius: 50%;
     color: white;
+    font-size: 11px;
 }
 
-/* Карточки */
-.glass-card {
-    background: rgba(25, 35, 50, 0.6);
-    backdrop-filter: blur(12px);
-    border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 20px;
-    transition: all 0.3s;
-}
-
-.neu-card {
-    background: rgba(25, 35, 50, 0.7);
-    backdrop-filter: blur(12px);
-    border-radius: 28px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 20px;
-    margin-bottom: 16px;
-    transition: all 0.3s;
-    box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.2), -4px -4px 8px rgba(255, 255, 255, 0.03);
-}
-
-.neu-card:active {
-    transform: scale(0.98);
-    box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.2), inset -2px -2px 4px rgba(255, 255, 255, 0.03);
-}
-
-/* Кнопки */
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    padding: 14px 24px;
-    border-radius: 40px;
-    color: white;
-    font-weight: 600;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.3s;
-    width: 100%;
-    text-align: center;
-}
-
-.btn-primary:active {
-    transform: scale(0.97);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 12px 24px;
-    border-radius: 40px;
-    color: white;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.btn-secondary:active {
-    background: rgba(255, 255, 255, 0.15);
-    transform: scale(0.97);
-}
-
-/* Модальное окно */
+/* ========== МОДАЛЬНЫЕ ОКНА ========== */
 .modal {
     display: none;
     position: fixed;
@@ -1317,17 +809,10 @@ body {
 
 .modal-content {
     background: rgba(25, 35, 50, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 32px;
+    border-radius: 24px;
     padding: 24px;
     max-width: 90%;
     width: 400px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.modal-content h2 {
-    margin-bottom: 20px;
-    font-size: 22px;
 }
 
 .modal-buttons {
@@ -1337,26 +822,24 @@ body {
 }
 
 .modal-save {
-    flex: 1;
     background: linear-gradient(135deg, #667eea, #764ba2);
     border: none;
     padding: 12px;
     border-radius: 30px;
     color: white;
-    cursor: pointer;
+    flex: 1;
 }
 
 .modal-cancel {
-    flex: 1;
     background: rgba(255, 255, 255, 0.1);
     border: none;
     padding: 12px;
     border-radius: 30px;
     color: white;
-    cursor: pointer;
+    flex: 1;
 }
 
-/* Лайтбокс */
+/* ========== ЛАЙТБОКС ========== */
 .lightbox {
     display: none;
     position: fixed;
@@ -1365,7 +848,6 @@ body {
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.95);
-    backdrop-filter: blur(20px);
     z-index: 2000;
     align-items: center;
     justify-content: center;
@@ -1390,276 +872,26 @@ body {
     cursor: pointer;
 }
 
-/* Аудиоплеер */
-.audio-player {
-    width: 100%;
-    padding: 12px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 30px;
-    margin-top: 8px;
-}
-
-audio {
-    width: 100%;
-    border-radius: 30px;
-}
-
-/* ========== 12. АНИМАЦИИ (1301-1400) ========== */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
+/* ========== АНИМАЦИИ ========== */
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.post-card, .create-post, .search-result-card, .chat-item {
+    animation: fadeInUp 0.3s ease-out;
 }
 
-@keyframes slideInLeft {
-    from {
-        opacity: 0;
-        transform: translateX(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-@keyframes shimmer {
-    0% { background-position: -1000px 0; }
-    100% { background-position: 1000px 0; }
-}
-
-/* Применение анимаций */
-.post-card, .neu-card, .create-post, .search-result-card, .chat-item {
-    animation: fadeInUp 0.4s ease-out;
-}
-
-.bottom-nav {
-    animation: slideInUp 0.3s ease-out;
-}
-
-@keyframes slideInUp {
-    from {
-        transform: translateY(100%);
-    }
-    to {
-        transform: translateY(0);
-    }
-}
-
-.message {
-    animation: fadeIn 0.2s ease-out;
-}
-
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(255, 255, 255, 0.2);
-    border-top-color: #667eea;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-/* ========== 13. ПРОКРУТКА (1401-1450) ========== */
+/* ========== СКРОЛЛ ========== */
 ::-webkit-scrollbar {
     width: 4px;
-    height: 4px;
 }
 
 ::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: #667eea;
     border-radius: 10px;
 }
-
-::-webkit-scrollbar-thumb:hover {
-    background: #667eea;
-}
-
-/* ========== 14. УТИЛИТЫ (1451-1480) ========== */
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.mt-8 { margin-top: 8px; }
-.mt-16 { margin-top: 16px; }
-.mt-24 { margin-top: 24px; }
-.mb-8 { margin-bottom: 8px; }
-.mb-16 { margin-bottom: 16px; }
-.mb-24 { margin-bottom: 24px; }
-.ml-8 { margin-left: 8px; }
-.mr-8 { margin-right: 8px; }
-
-.p-8 { padding: 8px; }
-.p-16 { padding: 16px; }
-.p-24 { padding: 24px; }
-
-.w-100 { width: 100%; }
-.h-100 { height: 100%; }
-
-.cursor-pointer { cursor: pointer; }
-.rounded-full { border-radius: 9999px; }
-
-.hidden { display: none; }
-.block { display: block; }
-.flex { display: flex; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-8 { gap: 8px; }
-.gap-16 { gap: 16px; }
-
-/* ========== 15. АДАПТАЦИЯ ПОД РАЗНЫЕ УСТРОЙСТВА (1481-1520) ========== */
-@media (max-width: 480px) {
-    .bottom-nav {
-        padding: 6px 12px 18px;
-    }
-    
-    .nav-item {
-        padding: 6px 12px;
-    }
-    
-    .nav-item span:first-child {
-        font-size: 22px;
-    }
-    
-    .nav-item span:last-child {
-        font-size: 10px;
-    }
-    
-    .post-header {
-        padding: 12px;
-    }
-    
-    .avatar, .avatar-placeholder {
-        width: 44px;
-        height: 44px;
-        font-size: 20px;
-    }
-    
-    .post-content {
-        font-size: 14px;
-        padding: 0 12px 12px;
-    }
-    
-    .action-btn {
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-    
-    .profile-posts-grid {
-        gap: 6px;
-    }
-    
-    .profile-avatar-large {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .auth-card {
-        padding: 24px 20px;
-    }
-    
-    .auth-row {
-        flex-direction: column;
-        gap: 0;
-    }
-}
-
-@media (min-width: 769px) {
-    .bottom-nav {
-        display: none;
-    }
-    
-    body {
-        padding-bottom: 0;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-    }
-}
-
-/* ========== 16. ТЕМНАЯ ТЕМА И ДОПОЛНИТЕЛЬНЫЕ ЭФФЕКТЫ (1521-1550) ========== */
-.backdrop-blur {
-    backdrop-filter: blur(10px);
-}
-
-.gradient-text {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.hover-scale {
-    transition: transform 0.3s;
-}
-
-.hover-scale:active {
-    transform: scale(0.98);
-}
-
-/* Status colors */
-.status-online { color: #4cd964; }
-.status-offline { color: rgba(255, 255, 255, 0.3); }
-.status-busy { color: #ff4757; }
-
-/* Бейджи */
-.badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 10px;
-    font-weight: 600;
-}
-
-.badge-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-.badge-danger { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
-.badge-success { background: rgba(76, 217, 100, 0.2); color: #4cd964; }
-
-/* ========== КОНЕЦ ФАЙЛА ========== */

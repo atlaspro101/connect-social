@@ -24,19 +24,13 @@
 
         .register-container {
             width: 100%;
-            max-width: 500px;
+            max-width: 550px;
             animation: fadeInUp 0.5s ease-out;
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .register-card {
@@ -126,10 +120,6 @@
             min-height: 80px;
         }
 
-        textarea.input-field span {
-            display: none;
-        }
-
         .gender-group {
             display: flex;
             gap: 20px;
@@ -191,6 +181,29 @@
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
 
+        .qr-register-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .qr-register-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
         .login-link {
             text-align: center;
             margin-top: 25px;
@@ -202,7 +215,6 @@
             color: #667eea;
             text-decoration: none;
             font-weight: 600;
-            transition: all 0.3s;
         }
 
         .login-link a:hover {
@@ -220,21 +232,28 @@
             text-align: center;
         }
 
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
         @media (max-width: 768px) {
             .register-card {
                 padding: 30px 20px;
             }
-            
             .logo h1 {
                 font-size: 28px;
             }
-            
             .title h2 {
                 font-size: 20px;
             }
-            
             .gender-group {
                 gap: 15px;
+            }
+            .row-2 {
+                grid-template-columns: 1fr;
+                gap: 0;
             }
         }
     </style>
@@ -259,34 +278,51 @@
             {% endif %}
 
             <form method="POST" enctype="multipart/form-data">
-                <div class="form-group">
-                    <div class="input-icon">
-                        <span>👤</span>
-                        <input type="text" name="username" class="input-field" placeholder="Имя пользователя *" required>
+                <div class="row-2">
+                    <div class="form-group">
+                        <div class="input-icon">
+                            <span>👤</span>
+                            <input type="text" name="username" class="input-field" placeholder="Имя пользователя *" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="input-icon">
+                            <span>🔒</span>
+                            <input type="password" name="password" class="input-field" placeholder="Пароль *" required>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <div class="input-icon">
-                        <span>🔒</span>
-                        <input type="password" name="password" class="input-field" placeholder="Пароль *" required>
+
+                <div class="row-2">
+                    <div class="form-group">
+                        <div class="input-icon">
+                            <span>📧</span>
+                            <input type="email" name="email" class="input-field" placeholder="Email">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="input-icon">
+                            <span>📱</span>
+                            <input type="tel" name="phone" class="input-field" placeholder="Телефон">
+                        </div>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <div class="input-icon">
-                        <span>📛</span>
-                        <input type="text" name="full_name" class="input-field" placeholder="Полное имя">
+
+                <div class="row-2">
+                    <div class="form-group">
+                        <div class="input-icon">
+                            <span>📛</span>
+                            <input type="text" name="full_name" class="input-field" placeholder="Полное имя">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="input-icon">
+                            <span>📅</span>
+                            <input type="date" name="birthday" class="input-field">
+                        </div>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <div class="input-icon">
-                        <span>📅</span>
-                        <input type="date" name="birthday" class="input-field">
-                    </div>
-                </div>
-                
+
                 <div class="form-group">
                     <span style="color: rgba(255,255,255,0.7); font-size: 14px; display: block; margin-bottom: 8px;">⚥ Пол</span>
                     <div class="gender-group">
@@ -301,21 +337,25 @@
                         </label>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <textarea name="bio" class="input-field" placeholder="📝 О себе" rows="3"></textarea>
                 </div>
-                
+
                 <div class="form-group">
                     <input type="file" name="avatar" class="file-input" accept="image/*">
                 </div>
-                
+
                 <button type="submit" class="btn-register">Зарегистрироваться 🚀</button>
             </form>
 
             <div class="login-link">
                 Уже есть аккаунт? <a href="/login">Войти</a>
             </div>
+
+            <a href="/qr-login" class="qr-register-btn">
+                📱 Войти через QR-код
+            </a>
         </div>
     </div>
 </body>

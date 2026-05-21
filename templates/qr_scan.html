@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подтверждение входа - Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .confirm-container {
+            background: rgba(25, 35, 50, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .user-info {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+        
+        .confirm-btn {
+            background: linear-gradient(135deg, #4cd964, #34c759);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .cancel-btn {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            padding: 12px 30px;
+            border-radius: 30px;
+            color: #ff4757;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="confirm-container">
+        <h1>🔐 Подтверждение входа</h1>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar"></div>
+            <h3 id="userName">Загрузка...</h3>
+            <p id="userLogin">@username</p>
+        </div>
+        <button class="confirm-btn" onclick="confirmLogin()">✅ Подтвердить вход</button>
+        <button class="cancel-btn" onclick="cancelLogin()">❌ Отмена</button>
+    </div>
+    
+    <script>
+        const sessionId = '{{ session_id }}';
+        
+        function confirmLogin() {
+            fetch('/api/qr/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId })
+            }).then(() => {
+                document.querySelector('.confirm-btn').textContent = '✅ Вход подтвержден!';
+                setTimeout(() => {
+                    window.close();
+                }, 1000);
+            });
+        }
+        
+        function cancelLogin() {
+            window.close();
+        }
+    </script>
+</body>
+</html>

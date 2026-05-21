@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Вход - Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .qr-container {
+            background: rgba(25, 35, 50, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .qr-code {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            margin: 20px 0;
+            display: inline-block;
+        }
+        
+        .qr-code canvas {
+            width: 200px;
+            height: 200px;
+        }
+        
+        .login-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            margin-top: 20px;
+        }
+        
+        .status {
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="qr-container">
+        <h1>📱 QR Вход</h1>
+        <p style="color: rgba(255,255,255,0.7);">Отсканируйте QR-код камерой телефона</p>
+        <div class="qr-code" id="qrcode"></div>
+        <div class="status" id="qrStatus">
+            <span class="spinner"></span> Ожидание сканирования...
+        </div>
+        <a href="/login" class="login-link">Или войти по паролю</a>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        let ws = null;
+        let sessionId = generateSessionId();
+        
+        function generateSessionId() {
+            return 'qr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        // Генерируем QR-код с URL
+        const qrUrl = window.location.origin + '/qr/scan/' + sessionId;
+        new QRCode(document.getElementById('qrcode'), {
+            text: qrUrl,
+            width: 200,
+            height: 200
+        });
+        
+        // Подключаем WebSocket для ожидания сканирования
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/qr/${sessionId}`);
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'login_success') {
+                document.getElementById('qrStatus').innerHTML = '✅ Вход выполнен! Перенаправление...';
+                setTimeout(() => {
+                    window.location.href = '/feed';
+                }, 1000);
+            }
+        };
+        
+        ws.onerror = function() {
+            document.getElementById('qrStatus').innerHTML = '⚠️ Ошибка соединения';
+        };
+    </script>
+</body>
+</html>
