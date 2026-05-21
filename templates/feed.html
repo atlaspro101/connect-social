@@ -25,8 +25,21 @@
         .file-preview-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
         .remove-file { position: absolute; top: -8px; right: -8px; background: #ff4757; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
         @media (max-width: 768px) { .sidebar, .sidebar-toggle { display: none; } }
-        .premium-nick { background: linear-gradient(90deg, #ff0000, #ffffff, #ff0000, #ffffff, #ff0000); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
-        @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        
+        /* Премиум стили - фиолетово-белый */
+        .premium-nick {
+            background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: premiumGlow 2s linear infinite;
+            font-weight: 800;
+        }
+        @keyframes premiumGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
         .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; margin-left: 4px; }
         .premium-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; font-size: 14px; }
     </style>
@@ -97,7 +110,7 @@
             
             <div id="forYouTab">
                 {% for post in posts %}
-                <div class="post-card">
+                <div class="post-card" data-post-id="{{ post.id }}">
                     <div class="post-header">
                         {% if post.avatar %}<img src="{{ post.avatar }}" class="avatar">{% else %}<div class="avatar-placeholder">{{ post.username[0].upper() }}</div>{% endif %}
                         <div style="flex:1">
@@ -132,8 +145,7 @@
     <div id="searchModal" class="modal" style="display:none;"><div class="modal-content"><h2>🔍 Поиск пользователей</h2><input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()"><div id="searchResultsModal"></div><button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button></div></div>
     
     <script>
-        let callCheckInterval = null;
-        let currentCallNotification = null;
+        let autoRefreshInterval = null;
         
         function toggleSidebar() {
             const s=document.getElementById('sidebar'),m=document.getElementById('mainContent'),t=document.getElementById('sidebarToggle');
@@ -146,7 +158,13 @@
         
         function switchFeedTab(tab){document.querySelectorAll('.feed-tab').forEach(t=>t.classList.remove('active'));event.target.classList.add('active');if(tab==='for-you'){document.getElementById('forYouTab').style.display='block';document.getElementById('subscriptionsTab').style.display='none';}else{document.getElementById('forYouTab').style.display='none';document.getElementById('subscriptionsTab').style.display='block';}}
         
-        function toggleLike(btn,postId){fetch(`/like_post/${postId}`,{method:'POST'}).then(r=>r.json()).then(data=>{btn.querySelector('.likes-count').textContent=data.likes_count;if(data.liked)btn.classList.add('liked');else btn.classList.remove('liked');});}
+        function toggleLike(btn,postId){
+            fetch(`/like_post/${postId}`,{method:'POST'}).then(r=>r.json()).then(data=>{
+                btn.querySelector('.likes-count').textContent=data.likes_count;
+                if(data.liked)btn.classList.add('liked');else btn.classList.remove('liked');
+            });
+        }
+        
         function sharePost(postId){navigator.clipboard.writeText(window.location.origin+'/post/'+postId);alert('Ссылка скопирована!');}
         function openLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('active');}
         function closeLightbox(){document.getElementById('lightbox').classList.remove('active');}
@@ -156,48 +174,39 @@
         document.getElementById('pcSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();openSearchModal();});
         document.getElementById('mobileSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();closeMobileMenu();openSearchModal();});
         
-        // ========== ЗВОНКИ ==========
-        function startCallCheck() {
-            if(callCheckInterval) clearInterval(callCheckInterval);
-            callCheckInterval = setInterval(() => {
-                fetch('/api/call/check').then(r=>r.json()).then(data=>{
-                    if(data.call && data.call.status === 'waiting' && !currentCallNotification){ showCallNotification(data.call); }
-                    else if(!data.call && currentCallNotification){ removeCallNotification(); }
-                }).catch(()=>{});
-            }, 3000);
+        // ========== АВТООБНОВЛЕНИЕ ПОСТОВ И ЛАЙКОВ (КАЖДЫЕ 2 СЕКУНДЫ) ==========
+        function autoRefreshFeed() {
+            fetch('/feed?ajax=1')
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newPosts = doc.querySelectorAll('.post-card');
+                    const currentContainer = document.getElementById('forYouTab');
+                    
+                    if (newPosts.length > 0) {
+                        // Обновляем только лайки, а не все посты (чтобы не было мерцания)
+                        document.querySelectorAll('.post-card').forEach((post, index) => {
+                            if (newPosts[index]) {
+                                const newLikes = newPosts[index].querySelector('.likes-count')?.textContent;
+                                const currentLikes = post.querySelector('.likes-count');
+                                if (currentLikes && newLikes && currentLikes.textContent !== newLikes) {
+                                    currentLikes.textContent = newLikes;
+                                }
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.log('Auto refresh error:', err));
         }
         
-        function showCallNotification(call) {
-            if(currentCallNotification) removeCallNotification();
-            currentCallNotification = document.createElement('div');
-            currentCallNotification.id = 'callNotification';
-            currentCallNotification.innerHTML = `<div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10001;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:20px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:2px solid #667eea;min-width:300px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:10px;">${call.call_type === 'video' ? '📹' : '📞'}</div>
-                <h3>Входящий звонок</h3>
-                <p style="margin:10px 0;color:rgba(255,255,255,0.9);">${call.caller_name} звонит вам</p>
-                <div style="display:flex;gap:15px;justify-content:center;margin-top:15px;">
-                    <button onclick="acceptCall(${call.id})" style="background:#4cd964;border:none;padding:10px 25px;border-radius:30px;color:white;cursor:pointer;font-weight:bold;">📞 Принять</button>
-                    <button onclick="rejectCall(${call.id})" style="background:#ff4757;border:none;padding:10px 25px;border-radius:30px;color:white;cursor:pointer;font-weight:bold;">❌ Отклонить</button>
-                </div>
-            </div>`;
-            document.body.appendChild(currentCallNotification);
-        }
+        // Запускаем автообновление каждые 2 секунды
+        autoRefreshInterval = setInterval(autoRefreshFeed, 2000);
         
-        function removeCallNotification() {
-            if(currentCallNotification){ currentCallNotification.remove(); currentCallNotification = null; }
-        }
-        
-        function acceptCall(callId) {
-            fetch('/api/call/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ call_id: callId }) })
-                .then(() => { removeCallNotification(); window.open(`/call/${callId}`, '_blank', 'width=400,height=600'); });
-        }
-        
-        function rejectCall(callId) {
-            fetch('/api/call/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ call_id: callId }) })
-                .then(() => removeCallNotification());
-        }
-        
-        startCallCheck();
+        // Очищаем интервал при уходе со страницы
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        });
         
         // Drag and Drop
         const dropZone=document.getElementById('dropZone'),mediaInput=document.getElementById('mediaInput'),filePreview=document.getElementById('filePreview');

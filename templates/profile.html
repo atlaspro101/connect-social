@@ -28,7 +28,7 @@
         .profile-display-name { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; background: #667eea; border-radius: 50%; color: white; font-size: 13px; font-weight: bold; margin-left: 6px; }
         .premium-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; font-size: 16px; }
-        .premium-nick { background: linear-gradient(90deg, #ff0000, #ffffff, #ff0000, #ffffff, #ff0000); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
+        .premium-nick { background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
         @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
         .profile-username { color: rgba(255,255,255,0.5); font-size: 15px; font-weight: normal; }
         .profile-bio { color: rgba(255,255,255,0.8); margin-bottom: 20px; line-height: 1.5; }
@@ -42,7 +42,6 @@
         .profile-action-btn { padding: 10px 28px; border-radius: 30px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.3s; border: none; }
         .profile-action-btn.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
         .profile-action-btn.secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; }
-        .call-buttons { display: flex; gap: 8px; margin-top: 10px; }
         .profile-tabs { display: flex; gap: 30px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .profile-tab { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 15px; font-weight: 500; padding: 12px 0; cursor: pointer; transition: all 0.3s; position: relative; }
         .profile-tab.active { color: #667eea; }
@@ -145,11 +144,7 @@
                             <button class="profile-action-btn primary" id="followBtn" onclick="toggleFollow({{ profile_user.id }})">
                                 {% if is_following %}📌 Отписаться{% else %}➕ Подписаться{% endif %}
                             </button>
-                            <div class="call-buttons">
-                                <button class="profile-action-btn secondary" onclick="startCall('audio', {{ profile_user.id }})">📞 Аудио</button>
-                                <button class="profile-action-btn secondary" onclick="startCall('video', {{ profile_user.id }})">📹 Видео</button>
-                                <a href="/chat/{{ profile_user.id }}" class="profile-action-btn secondary">💬</a>
-                            </div>
+                            <a href="/chat/{{ profile_user.id }}" class="profile-action-btn secondary">💬 Написать</a>
                         {% endif %}
                     </div>
                 </div>
@@ -207,9 +202,6 @@
     <div id="searchModal" class="modal" style="display:none;"><div class="modal-content"><h2>🔍 Поиск пользователей</h2><input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()"><div id="searchResultsModal"></div><button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button></div></div>
     
     <script>
-        let callCheckInterval = null;
-        let currentCallNotification = null;
-        
         function toggleSidebar() {
             const s=document.getElementById('sidebar'),m=document.getElementById('mainContent'),t=document.getElementById('sidebarToggle');
             if(window.innerWidth>768){s.classList.toggle('collapsed');m.classList.toggle('expanded');t.classList.toggle('collapsed');localStorage.setItem('sidebarCollapsed',s.classList.contains('collapsed'));}
@@ -230,60 +222,6 @@
         function searchUsersModal(){const q=document.getElementById('searchQuery').value;if(q.length<2){document.getElementById('searchResultsModal').innerHTML='';return;}fetch(`/search?q=${encodeURIComponent(q)}`).then(r=>r.text()).then(html=>{const p=new DOMParser(),d=p.parseFromString(html,'text/html'),r=d.querySelectorAll('.search-result-card');const c=document.getElementById('searchResultsModal');c.innerHTML='';r.forEach(r=>c.appendChild(r.cloneNode(true)));});}
         document.getElementById('pcSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();openSearchModal();});
         document.getElementById('mobileSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();closeMobileMenu();openSearchModal();});
-        
-        // ========== ЗВОНКИ ==========
-        function startCall(type, receiverId) {
-            fetch('/api/call/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ receiver_id: receiverId, call_type: type })
-            }).then(r=>r.json()).then(data=>{
-                if(data.success){ window.open(`/call/${data.call_id}`, '_blank', 'width=400,height=600'); }
-                else{ alert(data.error || 'Не удалось начать звонок'); }
-            }).catch(err=>alert('Ошибка: '+err));
-        }
-        
-        function startCallCheck() {
-            if(callCheckInterval) clearInterval(callCheckInterval);
-            callCheckInterval = setInterval(() => {
-                fetch('/api/call/check').then(r=>r.json()).then(data=>{
-                    if(data.call && data.call.status === 'waiting' && !currentCallNotification){ showCallNotification(data.call); }
-                    else if(!data.call && currentCallNotification){ removeCallNotification(); }
-                }).catch(()=>{});
-            }, 3000);
-        }
-        
-        function showCallNotification(call) {
-            if(currentCallNotification) removeCallNotification();
-            currentCallNotification = document.createElement('div');
-            currentCallNotification.id = 'callNotification';
-            currentCallNotification.innerHTML = `<div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10001;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:20px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:2px solid #667eea;min-width:300px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:10px;">${call.call_type === 'video' ? '📹' : '📞'}</div>
-                <h3>Входящий звонок</h3>
-                <p style="margin:10px 0;color:rgba(255,255,255,0.9);">${call.caller_name} звонит вам</p>
-                <div style="display:flex;gap:15px;justify-content:center;margin-top:15px;">
-                    <button onclick="acceptCall(${call.id})" style="background:#4cd964;border:none;padding:10px 25px;border-radius:30px;color:white;cursor:pointer;font-weight:bold;">📞 Принять</button>
-                    <button onclick="rejectCall(${call.id})" style="background:#ff4757;border:none;padding:10px 25px;border-radius:30px;color:white;cursor:pointer;font-weight:bold;">❌ Отклонить</button>
-                </div>
-            </div>`;
-            document.body.appendChild(currentCallNotification);
-        }
-        
-        function removeCallNotification() {
-            if(currentCallNotification){ currentCallNotification.remove(); currentCallNotification = null; }
-        }
-        
-        function acceptCall(callId) {
-            fetch('/api/call/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ call_id: callId }) })
-                .then(() => { removeCallNotification(); window.open(`/call/${callId}`, '_blank', 'width=400,height=600'); });
-        }
-        
-        function rejectCall(callId) {
-            fetch('/api/call/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ call_id: callId }) })
-                .then(() => removeCallNotification());
-        }
-        
-        startCallCheck();
         
         document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeLightbox(); closeEditModal(); closeSearchModal(); } });
     </script>
