@@ -55,6 +55,16 @@ def format_time_filter(date_value):
         return ""
     if isinstance(date_value, datetime):
         return date_value.strftime('%d.%m.%Y %H:%M')
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            return date_obj.strftime('%d.%m.%Y %H:%M')
+        except:
+            try:
+                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
+                return date_obj.strftime('%d.%m.%Y %H:%M')
+            except:
+                return date_value[:16]
     return str(date_value)[:16]
 
 @app.template_filter('format_date')
@@ -65,6 +75,14 @@ def format_date_filter(date_value):
         months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
         return f"{months[date_value.month - 1]} {date_value.year} г."
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+            return f"{months[date_obj.month - 1]} {date_obj.year} г."
+        except:
+            return "январь 2026 г."
     return "январь 2026 г."
 
 # ========== ИНИЦИАЛИЗАЦИЯ БД ==========
@@ -663,7 +681,7 @@ def login():
             update_last_seen(user['id'])
             return redirect(url_for('feed'))
         else:
-            return "Invalid credentials!"
+            return render_template('login.html', error='Неверное имя пользователя или пароль')
     return render_template('login.html')
 
 @app.route('/feed', methods=['GET', 'POST'])
@@ -810,6 +828,7 @@ def add_comment_route(post_id):
 @login_required
 def like_post_route(post_id):
     if has_liked_post(post_id, session['user_id']):
+        unlike_post(post_id, session['user_id'])
         return jsonify({'liked': False, 'likes_count': 0})
     else:
         like_post(post_id, session['user_id'])
@@ -893,7 +912,6 @@ def chat(user_id):
         return "User not found", 404
     messages = get_messages(session['user_id'], user_id)
     current_user = get_user_by_id(session['user_id'])
-    # Отмечаем сообщения как прочитанные
     chat_id = get_or_create_chat(session['user_id'], user_id)
     mark_messages_read(chat_id, session['user_id'])
     return render_template('chat.html', 
@@ -932,6 +950,13 @@ def api_messages(user_id):
 @login_required
 def api_unread_count():
     return jsonify({'count': get_unread_count(session['user_id'])})
+
+@app.route('/api/stats')
+def api_stats():
+    return jsonify({
+        'users': get_total_users(),
+        'posts': get_total_posts()
+    })
 
 @app.route('/health')
 def health():

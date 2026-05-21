@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Регистрация - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <style>
@@ -11,114 +11,24 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
         }
-        
+
         .register-container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(15px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 40px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            animation: fadeIn 0.6s ease-out;
-        }
-        
-        h1 {
-            color: white;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2em;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            color: white;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        
-        input, select, textarea {
             width: 100%;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            color: white;
-            font-size: 14px;
-            transition: all 0.3s;
+            max-width: 500px;
+            animation: fadeInUp 0.5s ease-out;
         }
-        
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.8);
-        }
-        
-        input::placeholder, textarea::placeholder {
-            color: rgba(255, 255, 255, 0.7);
-        }
-        
-        .gender-group {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-        
-        .gender-group label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-        }
-        
-        .gender-group input {
-            width: auto;
-            margin-right: 5px;
-        }
-        
-        button {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 10px;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 20px;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .link {
-            text-align: center;
-            margin-top: 20px;
-            color: white;
-        }
-        
-        .link a {
-            color: white;
-            text-decoration: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        
-        @keyframes fadeIn {
+
+        @keyframes fadeInUp {
             from {
                 opacity: 0;
                 transform: translateY(30px);
@@ -128,68 +38,284 @@
                 transform: translateY(0);
             }
         }
-        
+
+        .register-card {
+            background: rgba(25, 35, 50, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .title h2 {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .title p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .input-icon {
+            position: relative;
+        }
+
+        .input-icon span {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 30px;
+            color: white;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .input-field::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        textarea.input-field {
+            padding: 14px 16px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        textarea.input-field span {
+            display: none;
+        }
+
+        .gender-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        .gender-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .gender-label input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .file-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 30px;
+            padding: 12px 16px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-input::-webkit-file-upload-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            margin-right: 12px;
+        }
+
+        .btn-register {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 25px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+        }
+
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            color: #ff4757;
+            font-size: 14px;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
-            .register-container {
-                padding: 20px;
-                margin: 20px;
+            .register-card {
+                padding: 30px 20px;
+            }
+            
+            .logo h1 {
+                font-size: 28px;
+            }
+            
+            .title h2 {
+                font-size: 20px;
+            }
+            
+            .gender-group {
+                gap: 15px;
             }
         }
     </style>
 </head>
 <body>
     <div class="register-container">
-        <h1>✨ Создать аккаунт</h1>
-        <form method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label>👤 Имя пользователя *</label>
-                <input type="text" name="username" placeholder="username" required>
+        <div class="register-card">
+            <div class="logo">
+                <h1>✨ Connect</h1>
+                <p>Присоединяйтесь к нам</p>
             </div>
-            
-            <div class="form-group">
-                <label>📛 Полное имя</label>
-                <input type="text" name="full_name" placeholder="Иван Иванов">
+
+            <div class="title">
+                <h2>📝 Создать аккаунт</h2>
+                <p>Заполните форму ниже</p>
             </div>
-            
-            <div class="form-group">
-                <label>🔒 Пароль *</label>
-                <input type="password" name="password" placeholder="••••••••" required>
+
+            {% if error %}
+            <div class="error-message">
+                ⚠️ {{ error }}
             </div>
-            
-            <div class="form-group">
-                <label>🎂 Дата рождения</label>
-                <input type="date" name="birthday">
-            </div>
-            
-            <div class="form-group">
-                <label>⚥ Пол</label>
-                <div class="gender-group">
-                    <label>
-                        <input type="radio" name="gender" value="male"> Мужской
-                    </label>
-                    <label>
-                        <input type="radio" name="gender" value="female"> Женский
-                    </label>
-                    <label>
-                        <input type="radio" name="gender" value="other"> Другой
-                    </label>
+            {% endif %}
+
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <div class="input-icon">
+                        <span>👤</span>
+                        <input type="text" name="username" class="input-field" placeholder="Имя пользователя *" required>
+                    </div>
                 </div>
+                
+                <div class="form-group">
+                    <div class="input-icon">
+                        <span>🔒</span>
+                        <input type="password" name="password" class="input-field" placeholder="Пароль *" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-icon">
+                        <span>📛</span>
+                        <input type="text" name="full_name" class="input-field" placeholder="Полное имя">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="input-icon">
+                        <span>📅</span>
+                        <input type="date" name="birthday" class="input-field">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <span style="color: rgba(255,255,255,0.7); font-size: 14px; display: block; margin-bottom: 8px;">⚥ Пол</span>
+                    <div class="gender-group">
+                        <label class="gender-label">
+                            <input type="radio" name="gender" value="male"> Мужской
+                        </label>
+                        <label class="gender-label">
+                            <input type="radio" name="gender" value="female"> Женский
+                        </label>
+                        <label class="gender-label">
+                            <input type="radio" name="gender" value="other"> Другой
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <textarea name="bio" class="input-field" placeholder="📝 О себе" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <input type="file" name="avatar" class="file-input" accept="image/*">
+                </div>
+                
+                <button type="submit" class="btn-register">Зарегистрироваться 🚀</button>
+            </form>
+
+            <div class="login-link">
+                Уже есть аккаунт? <a href="/login">Войти</a>
             </div>
-            
-            <div class="form-group">
-                <label>📝 О себе</label>
-                <textarea name="bio" rows="3" placeholder="Расскажите о себе..."></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label>🖼 Аватарка</label>
-                <input type="file" name="avatar" accept="image/*">
-            </div>
-            
-            <button type="submit">Зарегистрироваться 🚀</button>
-        </form>
-        <div class="link">
-            <a href="{{ url_for('login') }}">Уже есть аккаунт? Войти</a>
         </div>
     </div>
 </body>
