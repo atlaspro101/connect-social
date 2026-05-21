@@ -17,184 +17,29 @@
         }
     </script>
     <style>
-        /* Общие стили */
-        .drop-zone {
-            border: 2px dashed rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: rgba(0, 0, 0, 0.3);
-            margin: 12px 0;
-        }
-        .drop-zone.drag-over {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-        }
+        .drop-zone { border: 2px dashed rgba(255,255,255,0.3); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(0,0,0,0.3); margin: 12px 0; }
+        .drop-zone.drag-over { border-color: #667eea; background: rgba(102,126,234,0.1); }
         .drop-zone input { display: none; }
         .file-preview { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; }
         .file-preview-item { position: relative; }
         .file-preview-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
-        .remove-file {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #ff4757;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        /* Premium стили */
-        .premium-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 6px;
-            font-size: 16px;
-        }
-        .premium-nick {
-            background: linear-gradient(90deg, #ff0000, #ffffff, #ff0000, #ffffff, #ff0000);
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            animation: premiumGlow 2s linear infinite;
-            font-weight: 800;
-        }
-        @keyframes premiumGlow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
-        }
-        .premium-btn {
-            background: linear-gradient(135deg, #ff4757, #ff6b81);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 30px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-left: 10px;
-        }
-        .premium-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
-        }
-        
-        /* ПК стили - только для ПК */
-        @media (min-width: 769px) {
-            .hamburger-btn, .hamburger-menu, .hamburger-overlay {
-                display: none !important;
-            }
-        }
-        
-        /* Мобильные стили - только для мобильных */
-        @media (max-width: 768px) {
-            .sidebar, .sidebar-toggle {
-                display: none !important;
-            }
-        }
-        
-        .avatar-post {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        .post-author-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px;
-        }
-        .post-author-info {
-            flex: 1;
-        }
-        .post-author-name-link {
-            color: white;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .post-author-username {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.5);
-        }
-        .post-time {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.4);
-        }
-        .post-text {
-            padding: 0 16px 16px;
-            font-size: 15px;
-            line-height: 1.5;
-        }
-        .post-media {
-            margin: 0;
-        }
-        .post-media img {
-            width: 100%;
-            max-height: 400px;
-            object-fit: cover;
-        }
-        .post-stats {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            padding: 12px 16px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .post-stat {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 13px;
-            padding: 6px 12px;
-            border-radius: 30px;
-            cursor: pointer;
-        }
-        .post-stat.liked {
-            color: #ff4757;
-        }
-        
-        @media (max-width: 768px) {
-            .avatar-post { width: 44px; height: 44px; }
-            .post-author-row { padding: 12px; }
-            .post-text { padding: 0 12px 12px; font-size: 14px; }
-            .post-stats { gap: 12px; padding: 10px 12px; }
-            .post-stat { padding: 4px 8px; font-size: 12px; }
-        }
+        .remove-file { position: absolute; top: -8px; right: -8px; background: #ff4757; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
+        @media (max-width: 768px) { .sidebar, .sidebar-toggle { display: none; } }
+        .premium-nick { background: linear-gradient(90deg, #ff0000, #ffffff, #ff0000, #ffffff, #ff0000); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
+        @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; margin-left: 4px; }
+        .premium-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; font-size: 14px; }
     </style>
 </head>
 <body>
-    <!-- ========== МОБИЛЬНОЕ ГАМБУРГЕР МЕНЮ (только для телефонов) ========== -->
-    <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()">
-        <span></span>
-    </div>
-    
+    <!-- Гамбургер меню -->
+    <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()"><span></span></div>
     <div class="hamburger-menu" id="mobileMenu">
         <div class="menu-header">
             <div class="menu-logo">✨ Connect</div>
             <div class="menu-user">
-                {% if user_avatar %}
-                    <img src="{{ user_avatar }}" class="menu-avatar" alt="{{ username }}">
-                {% else %}
-                    <div class="avatar-placeholder" style="width:48px;height:48px;">{{ username[0].upper() }}</div>
-                {% endif %}
-                <div class="menu-user-info">
-                    <div class="menu-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div>
-                    <div class="menu-status">● Онлайн</div>
-                </div>
+                {% if user_avatar %}<img src="{{ user_avatar }}" class="menu-avatar">{% else %}<div class="avatar-placeholder">{{ username[0].upper() }}</div>{% endif %}
+                <div class="menu-user-info"><div class="menu-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div><div class="menu-status">● Онлайн</div></div>
             </div>
         </div>
         <div class="menu-nav">
@@ -203,22 +48,18 @@
             <a href="/chats" class="menu-item">💬 Сообщения</a>
             <a href="#" class="menu-item" id="mobileSearchBtn">🔍 Поиск</a>
             {% if is_admin %}<a href="/admin" class="menu-item">👑 Админ панель</a>{% endif %}
-            <button class="menu-item" id="mobilePremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
-            <a href="/logout" class="menu-item" style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;">🚪 Выйти</a>
+            <a href="/logout" class="menu-item">🚪 Выйти</a>
         </div>
     </div>
     <div class="hamburger-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
     
-    <!-- ========== ПК САЙДБАР (только для ПК) ========== -->
+    <!-- ПК сайдбар -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">✨ Connect</div>
             <div class="sidebar-user">
-                {% if user_avatar %}<img src="{{ user_avatar }}" class="sidebar-avatar">{% else %}<div class="avatar-placeholder" style="width:48px;height:48px;">{{ username[0].upper() }}</div>{% endif %}
-                <div class="sidebar-user-info">
-                    <div class="sidebar-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div>
-                    <div class="sidebar-user-status">● Онлайн</div>
-                </div>
+                {% if user_avatar %}<img src="{{ user_avatar }}" class="sidebar-avatar">{% else %}<div class="avatar-placeholder">{{ username[0].upper() }}</div>{% endif %}
+                <div class="sidebar-user-info"><div class="sidebar-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div><div class="sidebar-user-status">● Онлайн</div></div>
             </div>
         </div>
         <div class="sidebar-nav">
@@ -227,8 +68,7 @@
             <a href="/chats" class="sidebar-item">💬 Сообщения</a>
             <a href="#" class="sidebar-item" id="pcSearchBtn">🔍 Поиск</a>
             {% if is_admin %}<a href="/admin" class="sidebar-item">👑 Админ панель</a>{% endif %}
-            <button class="sidebar-item" id="pcPremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:15px;">⚔️ Connect Premium</button>
-            <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;"><a href="/logout" class="sidebar-item">🚪 Выйти</a></div>
+            <a href="/logout" class="sidebar-item">🚪 Выйти</a>
         </div>
     </div>
     
@@ -238,13 +78,11 @@
     
     <div class="main-content" id="mainContent">
         <div class="feed-container">
-            <!-- Вкладки ленты -->
             <div class="feed-tabs">
-                <button class="feed-tab active" data-tab="for-you" onclick="switchFeedTab('for-you')">Для вас</button>
-                <button class="feed-tab" data-tab="subscriptions" onclick="switchFeedTab('subscriptions')">Подписки</button>
+                <button class="feed-tab active" onclick="switchFeedTab('for-you')">Для вас</button>
+                <button class="feed-tab" onclick="switchFeedTab('subscriptions')">Подписки</button>
             </div>
             
-            <!-- Создание поста -->
             <div class="create-post">
                 <form method="POST" enctype="multipart/form-data" id="postForm">
                     <textarea name="content" placeholder="Что нового?" rows="3" id="postContent"></textarea>
@@ -257,21 +95,14 @@
                 </form>
             </div>
             
-            <!-- Посты "Для вас" -->
             <div id="forYouTab">
                 {% for post in posts %}
-                <div class="post-card" id="post-{{ post.id }}">
-                    <div class="post-author-row">
-                        {% if post.avatar %}
-                            <img src="{{ post.avatar }}" class="avatar-post" alt="{{ post.username }}">
-                        {% else %}
-                            <div class="avatar-placeholder" style="width:48px;height:48px;">{{ post.username[0].upper() }}</div>
-                        {% endif %}
-                        <div class="post-author-info">
+                <div class="post-card">
+                    <div class="post-header">
+                        {% if post.avatar %}<img src="{{ post.avatar }}" class="avatar">{% else %}<div class="avatar-placeholder">{{ post.username[0].upper() }}</div>{% endif %}
+                        <div style="flex:1">
                             <div class="post-author-name">
-                                <a href="/profile/{{ post.user_id }}" class="post-author-name-link {% if post.is_premium %}premium-nick{% endif %}">
-                                    {{ post.full_name or post.username }}
-                                </a>
+                                <a href="/profile/{{ post.user_id }}" style="color:white;text-decoration:none;" class="{% if post.is_premium %}premium-nick{% endif %}">{{ post.full_name or post.username }}</a>
                                 {% if post.is_admin %}<span class="verified-badge">✓</span>{% endif %}
                                 {% if post.is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
                             </div>
@@ -279,240 +110,109 @@
                             <div class="post-time">{{ post.created_at|format_time }}</div>
                         </div>
                     </div>
-                    <div class="post-text">{{ post.content }}</div>
-                    {% if post.media_path %}
-                        {% if post.media_type == 'image' or post.media_type == 'gif' %}
-                            <div class="post-media" onclick="openLightbox('{{ post.media_path }}')"><img src="{{ post.media_path }}" alt="Post media"></div>
-                        {% elif post.media_type == 'audio' %}
-                            <div style="padding:12px;"><audio controls style="width:100%;"><source src="{{ post.media_path }}" type="audio/mpeg"></audio></div>
-                        {% endif %}
-                    {% endif %}
-                    <div class="post-stats">
-                        <button class="post-stat like-btn {% if post.id in liked_posts %}liked{% endif %}" onclick="toggleLike(this, {{ post.id }})">❤️ <span class="likes-count">{{ post.likes }}</span></button>
-                        <a href="/post/{{ post.id }}" class="post-stat">💬 Комментировать</a>
-                        <button class="post-stat" onclick="sharePost({{ post.id }})">📤 Поделиться</button>
+                    <div class="post-content">{{ post.content }}</div>
+                    {% if post.media_path and (post.media_type == 'image' or post.media_type == 'gif') %}<div class="post-media" onclick="openLightbox('{{ post.media_path }}')"><img src="{{ post.media_path }}"></div>{% endif %}
+                    {% if post.media_path and post.media_type == 'audio' %}<div style="padding:12px;"><audio controls style="width:100%;"><source src="{{ post.media_path }}" type="audio/mpeg"></audio></div>{% endif %}
+                    <div class="post-actions">
+                        <button class="action-btn like-btn {% if post.id in liked_posts %}liked{% endif %}" onclick="toggleLike(this, {{ post.id }})">❤️ <span class="likes-count">{{ post.likes }}</span></button>
+                        <a href="/post/{{ post.id }}" class="action-btn">💬 Комментировать</a>
+                        <button class="action-btn" onclick="sharePost({{ post.id }})">📤 Поделиться</button>
                     </div>
                 </div>
                 {% else %}
-                <div style="text-align:center;padding:60px;background:rgba(25,35,50,0.6);border-radius:24px;">
-                    <div style="font-size:48px;">📝</div>
-                    <h3>Нет постов</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:8px;">Будьте первым!</p>
-                </div>
+                <div style="text-align:center;padding:60px;background:rgba(25,35,50,0.6);border-radius:24px;"><div style="font-size:48px;">📝</div><h3>Нет постов</h3></div>
                 {% endfor %}
             </div>
             
-            <!-- Посты "Подписки" -->
-            <div id="subscriptionsTab" style="display:none;">
-                <div style="text-align:center;padding:60px;background:rgba(25,35,50,0.6);border-radius:24px;">
-                    <div style="font-size:48px;">👥</div>
-                    <h3>Посты ваших подписок</h3>
-                    <p style="color:rgba(255,255,255,0.6);margin-top:8px;">Здесь будут посты людей, на которых вы подписаны</p>
-                </div>
-            </div>
+            <div id="subscriptionsTab" style="display:none;"><div style="text-align:center;padding:60px;background:rgba(25,35,50,0.6);border-radius:24px;"><div style="font-size:48px;">👥</div><h3>Посты ваших подписок</h3></div></div>
         </div>
     </div>
     
-    <!-- Модальное окно Premium -->
-    <div id="premiumModal" class="modal" style="display:none;">
-        <div class="modal-content" style="text-align:center;">
-            <div style="font-size:48px;margin-bottom:16px;">⚔️</div>
-            <h2>Connect Premium</h2>
-            <p style="margin:16px 0;color:rgba(255,255,255,0.8);">Купите Premium и получите:</p>
-            <ul style="text-align:left;margin:16px 0;padding-left:20px;color:rgba(255,255,255,0.7);">
-                <li>✨ Красивое переливание ника</li>
-                <li>⚔️ Иконка красного меча рядом с ником</li>
-                <li>🔥 Приоритет в поддержке</li>
-                <li>💎 Эксклюзивные эмодзи в комментариях</li>
-            </ul>
-            <div style="font-size:32px;font-weight:bold;margin:20px 0;color:#ff4757;">199 ₽</div>
-            <button class="modal-save" onclick="buyPremium()" style="width:100%;">💎 Купить Premium</button>
-            <button class="modal-cancel" onclick="closePremiumModal()" style="width:100%;margin-top:10px;">Отмена</button>
-        </div>
-    </div>
-    
-    <!-- Модальное окно поиска -->
-    <div id="searchModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <h2>🔍 Поиск пользователей</h2>
-            <input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()">
-            <div id="searchResultsModal" style="margin-top:20px; max-height:300px; overflow-y:auto;"></div>
-            <button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button>
-        </div>
-    </div>
-    
-    <!-- Лайтбокс -->
-    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
-        <span class="lightbox-close">&times;</span>
-        <img id="lightbox-img" src="">
-    </div>
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()"><span class="lightbox-close">&times;</span><img id="lightbox-img" src=""></div>
+    <div id="searchModal" class="modal" style="display:none;"><div class="modal-content"><h2>🔍 Поиск пользователей</h2><input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()"><div id="searchResultsModal"></div><button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button></div></div>
     
     <script>
-        // Sidebar для ПК
+        let callCheckInterval = null;
+        let currentCallNotification = null;
+        
         function toggleSidebar() {
-            if (window.innerWidth > 768) {
-                const sidebar = document.getElementById('sidebar');
-                const mainContent = document.getElementById('mainContent');
-                const toggleBtn = document.getElementById('sidebarToggle');
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('expanded');
-                toggleBtn.classList.toggle('collapsed');
-                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-            }
+            const s=document.getElementById('sidebar'),m=document.getElementById('mainContent'),t=document.getElementById('sidebarToggle');
+            if(window.innerWidth>768){s.classList.toggle('collapsed');m.classList.toggle('expanded');t.classList.toggle('collapsed');localStorage.setItem('sidebarCollapsed',s.classList.contains('collapsed'));}
+        }
+        if(window.innerWidth>768&&localStorage.getItem('sidebarCollapsed')==='true'){document.getElementById('sidebar').classList.add('collapsed');document.getElementById('mainContent').classList.add('expanded');document.getElementById('sidebarToggle').classList.add('collapsed');}
+        
+        function toggleMobileMenu(){document.getElementById('mobileMenu').classList.toggle('open');document.getElementById('menuOverlay').classList.toggle('active');document.getElementById('hamburgerBtn').classList.toggle('open');}
+        function closeMobileMenu(){document.getElementById('mobileMenu').classList.remove('open');document.getElementById('menuOverlay').classList.remove('active');document.getElementById('hamburgerBtn').classList.remove('open');}
+        
+        function switchFeedTab(tab){document.querySelectorAll('.feed-tab').forEach(t=>t.classList.remove('active'));event.target.classList.add('active');if(tab==='for-you'){document.getElementById('forYouTab').style.display='block';document.getElementById('subscriptionsTab').style.display='none';}else{document.getElementById('forYouTab').style.display='none';document.getElementById('subscriptionsTab').style.display='block';}}
+        
+        function toggleLike(btn,postId){fetch(`/like_post/${postId}`,{method:'POST'}).then(r=>r.json()).then(data=>{btn.querySelector('.likes-count').textContent=data.likes_count;if(data.liked)btn.classList.add('liked');else btn.classList.remove('liked');});}
+        function sharePost(postId){navigator.clipboard.writeText(window.location.origin+'/post/'+postId);alert('Ссылка скопирована!');}
+        function openLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('active');}
+        function closeLightbox(){document.getElementById('lightbox').classList.remove('active');}
+        function openSearchModal(){document.getElementById('searchModal').style.display='flex';}
+        function closeSearchModal(){document.getElementById('searchModal').style.display='none';}
+        function searchUsersModal(){const q=document.getElementById('searchQuery').value;if(q.length<2){document.getElementById('searchResultsModal').innerHTML='';return;}fetch(`/search?q=${encodeURIComponent(q)}`).then(r=>r.text()).then(html=>{const p=new DOMParser(),d=p.parseFromString(html,'text/html'),r=d.querySelectorAll('.search-result-card');const c=document.getElementById('searchResultsModal');c.innerHTML='';r.forEach(r=>c.appendChild(r.cloneNode(true)));});}
+        document.getElementById('pcSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();openSearchModal();});
+        document.getElementById('mobileSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();closeMobileMenu();openSearchModal();});
+        
+        // ========== ЗВОНКИ ==========
+        function startCallCheck() {
+            if(callCheckInterval) clearInterval(callCheckInterval);
+            callCheckInterval = setInterval(() => {
+                fetch('/api/call/check').then(r=>r.json()).then(data=>{
+                    if(data.call && data.call.status === 'waiting' && !currentCallNotification){ showCallNotification(data.call); }
+                    else if(!data.call && currentCallNotification){ removeCallNotification(); }
+                }).catch(()=>{});
+            }, 3000);
         }
         
-        // Загрузка состояния сайдбара для ПК
-        if (window.innerWidth > 768 && localStorage.getItem('sidebarCollapsed') === 'true') {
-            document.getElementById('sidebar').classList.add('collapsed');
-            document.getElementById('mainContent').classList.add('expanded');
-            document.getElementById('sidebarToggle').classList.add('collapsed');
+        function showCallNotification(call) {
+            if(currentCallNotification) removeCallNotification();
+            currentCallNotification = document.createElement('div');
+            currentCallNotification.id = 'callNotification';
+            currentCallNotification.innerHTML = `<div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10001;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:20px;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:2px solid #667eea;min-width:300px;text-align:center;">
+                <div style="font-size:48px;margin-bottom:10px;">${call.call_type === 'video' ? '📹' : '📞'}</div>
+                <h3>Входящий звонок</h3>
+                <p style="margin:10px 0;color:rgba(255,255,255,0.9);">${call.caller_name} звонит вам</p>
+                <div style="display:flex;gap:15px;justify-content:center;margin-top:15px;">
+                    <button onclick="acceptCall(${call.id})" style="background:#4cd964;border:none;padding:10px 25px;border-radius:30px;color:white;cursor:pointer;font-weight:bold;">📞 Принять</button>
+                    <button onclick="rejectCall(${call.id})" style="background:#ff4757;border:none;padding:10px 25px;border-radius:30px;color:white;cursor:pointer;font-weight:bold;">❌ Отклонить</button>
+                </div>
+            </div>`;
+            document.body.appendChild(currentCallNotification);
         }
         
-        // Мобильное меню (только для мобильных)
-        function toggleMobileMenu() {
-            if (window.innerWidth <= 768) {
-                document.getElementById('mobileMenu').classList.toggle('open');
-                document.getElementById('menuOverlay').classList.toggle('active');
-                document.getElementById('hamburgerBtn').classList.toggle('open');
-            }
+        function removeCallNotification() {
+            if(currentCallNotification){ currentCallNotification.remove(); currentCallNotification = null; }
         }
         
-        function closeMobileMenu() {
-            if (window.innerWidth <= 768) {
-                document.getElementById('mobileMenu').classList.remove('open');
-                document.getElementById('menuOverlay').classList.remove('active');
-                document.getElementById('hamburgerBtn').classList.remove('open');
-            }
+        function acceptCall(callId) {
+            fetch('/api/call/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ call_id: callId }) })
+                .then(() => { removeCallNotification(); window.open(`/call/${callId}`, '_blank', 'width=400,height=600'); });
         }
         
-        // Вкладки ленты
-        function switchFeedTab(tab) {
-            document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            if (tab === 'for-you') {
-                document.getElementById('forYouTab').style.display = 'block';
-                document.getElementById('subscriptionsTab').style.display = 'none';
-            } else if (tab === 'subscriptions') {
-                document.getElementById('forYouTab').style.display = 'none';
-                document.getElementById('subscriptionsTab').style.display = 'block';
-            }
+        function rejectCall(callId) {
+            fetch('/api/call/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ call_id: callId }) })
+                .then(() => removeCallNotification());
         }
         
-        // Premium
-        function openPremiumModal() {
-            document.getElementById('premiumModal').style.display = 'flex';
-        }
-        function closePremiumModal() {
-            document.getElementById('premiumModal').style.display = 'none';
-        }
-        function buyPremium() {
-            fetch('/buy_premium', { method: 'POST' })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('⚔️ Поздравляем! Вы стали Premium пользователем!');
-                        location.reload();
-                    } else {
-                        alert('Ошибка при покупке Premium');
-                    }
-                });
-        }
-        
-        document.getElementById('pcPremiumBtn')?.addEventListener('click', openPremiumModal);
-        document.getElementById('mobilePremiumBtn')?.addEventListener('click', openPremiumModal);
-        
-        function toggleLike(btn, postId) {
-            fetch(`/like_post/${postId}`, { method: 'POST' }).then(r=>r.json()).then(data => {
-                btn.querySelector('.likes-count').textContent = data.likes_count;
-                if (data.liked) btn.classList.add('liked'); else btn.classList.remove('liked');
-            });
-        }
-        
-        function sharePost(postId) {
-            navigator.clipboard.writeText(window.location.origin + '/post/' + postId);
-            alert('Ссылка скопирована!');
-        }
-        
-        function openLightbox(src) {
-            document.getElementById('lightbox-img').src = src;
-            document.getElementById('lightbox').classList.add('active');
-        }
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.remove('active');
-        }
-        
-        // Поиск
-        function openSearchModal() { document.getElementById('searchModal').style.display = 'flex'; }
-        function closeSearchModal() { document.getElementById('searchModal').style.display = 'none'; }
-        
-        function searchUsersModal() {
-            const query = document.getElementById('searchQuery').value;
-            if (query.length < 2) { document.getElementById('searchResultsModal').innerHTML = ''; return; }
-            fetch(`/search?q=${encodeURIComponent(query)}`).then(r=>r.text()).then(html => {
-                const parser = new DOMParser(), doc = parser.parseFromString(html, 'text/html'), results = doc.querySelectorAll('.search-result-card');
-                const container = document.getElementById('searchResultsModal');
-                container.innerHTML = '';
-                results.forEach(r => container.appendChild(r.cloneNode(true)));
-            });
-        }
-        
-        document.getElementById('pcSearchBtn')?.addEventListener('click', (e) => { e.preventDefault(); openSearchModal(); });
-        document.getElementById('mobileSearchBtn')?.addEventListener('click', (e) => { e.preventDefault(); closeMobileMenu(); openSearchModal(); });
+        startCallCheck();
         
         // Drag and Drop
-        const dropZone = document.getElementById('dropZone');
-        const mediaInput = document.getElementById('mediaInput');
-        const filePreview = document.getElementById('filePreview');
-        let selectedFiles = [];
-        
-        ['dragenter','dragover','dragleave','drop'].forEach(n => {
-            dropZone.addEventListener(n, preventDefaults, false);
-            document.body.addEventListener(n, preventDefaults, false);
-        });
-        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
-        ['dragenter','dragover'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.add('drag-over'), false));
-        ['dragleave','drop'].forEach(n => dropZone.addEventListener(n, () => dropZone.classList.remove('drag-over'), false));
-        dropZone.addEventListener('drop', e => { handleFiles(e.dataTransfer.files); }, false);
-        mediaInput.addEventListener('change', function() { handleFiles(this.files); });
-        
-        function handleFiles(files) { selectedFiles = Array.from(files); updateFilePreview(); }
-        function updateFilePreview() {
-            filePreview.innerHTML = '';
-            selectedFiles.forEach((file, index) => {
-                const reader = new FileReader();
-                const previewItem = document.createElement('div');
-                previewItem.className = 'file-preview-item';
-                reader.onload = function(e) {
-                    if (file.type.startsWith('image/')) {
-                        previewItem.innerHTML = `<img src="${e.target.result}"><div class="remove-file" onclick="removeFile(${index})">×</div>`;
-                    } else {
-                        previewItem.innerHTML = `<div style="width:80px;height:80px;background:rgba(102,126,234,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;">📁<div class="remove-file" onclick="removeFile(${index})">×</div></div>`;
-                    }
-                };
-                reader.readAsDataURL(file);
-                filePreview.appendChild(previewItem);
-            });
-            const dt = new DataTransfer();
-            selectedFiles.forEach(f => dt.items.add(f));
-            mediaInput.files = dt.files;
-        }
-        function removeFile(index) { selectedFiles.splice(index,1); const dt = new DataTransfer(); selectedFiles.forEach(f => dt.items.add(f)); mediaInput.files = dt.files; updateFilePreview(); }
-        
-        document.getElementById('postForm').addEventListener('submit', function(e) {
-            if (!document.getElementById('postContent').value.trim() && selectedFiles.length === 0) {
-                e.preventDefault();
-                alert('Напишите что-нибудь или прикрепите файл!');
-            }
-        });
-        
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLightbox(); closeSearchModal(); closePremiumModal(); } });
-        
-        // При изменении размера окна - закрываем мобильное меню
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                closeMobileMenu();
-            }
-        });
+        const dropZone=document.getElementById('dropZone'),mediaInput=document.getElementById('mediaInput'),filePreview=document.getElementById('filePreview');
+        let selectedFiles=[];
+        ['dragenter','dragover','dragleave','drop'].forEach(n=>{dropZone.addEventListener(n,preventDefaults,false);document.body.addEventListener(n,preventDefaults,false);});
+        function preventDefaults(e){e.preventDefault();e.stopPropagation();}
+        ['dragenter','dragover'].forEach(n=>dropZone.addEventListener(n,()=>dropZone.classList.add('drag-over'),false));
+        ['dragleave','drop'].forEach(n=>dropZone.addEventListener(n,()=>dropZone.classList.remove('drag-over'),false));
+        dropZone.addEventListener('drop',e=>{handleFiles(e.dataTransfer.files);},false);
+        mediaInput.addEventListener('change',function(){handleFiles(this.files);});
+        function handleFiles(files){selectedFiles=Array.from(files);updateFilePreview();}
+        function updateFilePreview(){filePreview.innerHTML='';selectedFiles.forEach((file,index)=>{const reader=new FileReader();const previewItem=document.createElement('div');previewItem.className='file-preview-item';reader.onload=function(e){if(file.type.startsWith('image/')){previewItem.innerHTML=`<img src="${e.target.result}"><div class="remove-file" onclick="removeFile(${index})">×</div>`;}else{previewItem.innerHTML=`<div style="width:80px;height:80px;background:rgba(102,126,234,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;">📁<div class="remove-file" onclick="removeFile(${index})">×</div></div>`;}};reader.readAsDataURL(file);filePreview.appendChild(previewItem);});const dt=new DataTransfer();selectedFiles.forEach(f=>dt.items.add(f));mediaInput.files=dt.files;}
+        function removeFile(index){selectedFiles.splice(index,1);const dt=new DataTransfer();selectedFiles.forEach(f=>dt.items.add(f));mediaInput.files=dt.files;updateFilePreview();}
+        document.getElementById('postForm').addEventListener('submit',function(e){if(!document.getElementById('postContent').value.trim()&&selectedFiles.length===0){e.preventDefault();alert('Напишите что-нибудь или прикрепите файл!');}});
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeLightbox();closeSearchModal();}});
     </script>
 </body>
 </html>
