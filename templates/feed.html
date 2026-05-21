@@ -295,11 +295,15 @@
     btn.classList.add('loading');
     btn.disabled = true;
     
-    let apiKey = localStorage.getItem('openrouter_api_key');
-    if (!apiKey) {
-        // Используем ключ по умолчанию
-        apiKey = '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';
+    // В функции improveWithAI замените:
+let apiKey = localStorage.getItem('openrouter_api_key');
+if (!apiKey) {
+    // Не используем ключ по умолчанию, предлагаем пользователю ввести свой
+    apiKey = prompt('Введите ваш OpenRouter API ключ (или оставьте пустым для базового улучшения):');
+    if (apiKey) {
+        localStorage.setItem('openrouter_api_key', apiKey);
     }
+}
     
     try {
         const response = await fetch('/api/ai/improve', {

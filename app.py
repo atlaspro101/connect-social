@@ -1757,9 +1757,14 @@ def ai_improve_text():
     if not original_text:
         return jsonify({'success': False, 'error': 'Текст не указан'})
     
-    # Если нет своего ключа, используем ключ по умолчанию
+    # Берем ключ из переменной окружения или из запроса пользователя
     if not api_key:
-        api_key = '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'
+        api_key = os.environ.get('OPENROUTER_API_KEY', '')
+    
+    # Если нет ключа, используем локальное улучшение
+    if not api_key:
+        improved_text = local_text_improvement(original_text)
+        return jsonify({'success': True, 'improved_text': improved_text})
     
     headers = {
         'Authorization': f'Bearer {api_key}',
