@@ -107,6 +107,19 @@ def init_db():
         FOREIGN KEY(receiver_id) REFERENCES users(id)
     )''')
     
+    # Таблица звонков
+    c.execute('''CREATE TABLE IF NOT EXISTS calls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        caller_id INTEGER,
+        receiver_id INTEGER,
+        call_type TEXT,
+        status TEXT,
+        started_at TIMESTAMP,
+        ended_at TIMESTAMP,
+        FOREIGN KEY(caller_id) REFERENCES users(id),
+        FOREIGN KEY(receiver_id) REFERENCES users(id)
+    )''')
+    
     conn.commit()
     
     # Создаем админа
@@ -557,3 +570,50 @@ def get_user_chats(user_id):
     chats = c.fetchall()
     conn.close()
     return [dict(chat) for chat in chats]
+
+# ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ ==========
+
+def create_call(caller_id, receiver_id, call_type):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO calls (caller_id, receiver_id, call_type, status, started_at) VALUES (?, ?, ?, ?, ?)",
+              (caller_id, receiver_id, call_type, 'waiting', datetime.now()))
+    call_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return call_id
+
+def update_call_status(call_id, status):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("UPDATE calls SET status = ?, ended_at = ? WHERE id = ?", 
+              (status, datetime.now() if status in ['ended', 'missed'] else None, call_id))
+    conn.commit()
+    conn.close()
+
+def get_active_call(user_id):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM calls WHERE (caller_id = ? OR receiver_id = ?) AND status = 'waiting' ORDER BY started_at DESC LIMIT 1", 
+              (user_id, user_id))
+    call = c.fetchone()
+    conn.close()
+    return call
+
+def get_call(call_id):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM calls WHERE id = ?", (call_id,))
+    call = c.fetchone()
+    conn.close()
+    if call:
+        return {
+            'id': call[0],
+            'caller_id': call[1],
+            'receiver_id': call[2],
+            'call_type': call[3],
+            'status': call[4],
+            'started_at': call[5],
+            'ended_at': call[6]
+        }
+    return None
