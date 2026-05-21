@@ -589,7 +589,13 @@
                             {% endfor %}
                         </div>
                         <div class="message-time">
-                            {{ msg.created_at.strftime('%H:%M') if msg.created_at else '' }}
+                            {% if msg.created_at %}
+                                {% if msg.created_at.strftime %}
+                                    {{ msg.created_at.strftime('%H:%M') }}
+                                {% else %}
+                                    {{ msg.created_at }}
+                                {% endif %}
+                            {% endif %}
                             {% if msg.is_edited %}✏️{% endif %}
                             {% if msg.sender_id == session.user_id and msg.is_read %}✓✓{% elif msg.sender_id == session.user_id %}✓{% endif %}
                         </div>
@@ -669,6 +675,17 @@
 
         const messagesContainer = document.getElementById('messagesContainer');
         const messageInput = document.getElementById('messageInput');
+
+        function formatTime(dateValue) {
+            if (!dateValue) return '';
+            if (dateValue.strftime) return dateValue.strftime('%H:%M');
+            if (typeof dateValue === 'string') {
+                const parts = dateValue.split(' ');
+                if (parts.length > 1) return parts[1].substring(0, 5);
+                if (dateValue.includes(':')) return dateValue.substring(0, 5);
+            }
+            return '';
+        }
 
         function sendMessage() {
             let message = messageInput.value.trim();
@@ -832,7 +849,7 @@
                                     ${escapeHtml(msg.message)}
                                     ${msg.reactions ? `<div class="reactions-display">${Object.entries(msg.reactions).map(([r,c]) => `<span class="reaction-count">${r} ${c}</span>`).join('')}</div>` : ''}
                                     <div class="message-time">
-                                        ${msg.created_at}
+                                        ${formatTime(msg.created_at)}
                                         ${msg.is_edited ? '✏️' : ''}
                                         ${msg.sender_id == {{ session.user_id }} && msg.is_read ? '✓✓' : (msg.sender_id == {{ session.user_id }} ? '✓' : '')}
                                     </div>
