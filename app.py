@@ -5,9 +5,9 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from datetime import datetime, timedelta
 
-# Импорт из database.py
+# Импорт из database.py (БД уже инициализируется при импорте)
 from database import (
-    init_db, add_user, get_user, get_user_by_id, update_last_seen,
+    add_user, get_user, get_user_by_id, update_last_seen,
     add_post, get_all_posts, get_user_posts, add_comment, get_comments,
     like_post, has_liked_post, unlike_post, follow_user, unfollow_user,
     is_following, get_followers_count, get_following_count, search_users,
@@ -45,11 +45,7 @@ def format_time_filter(date_value):
         return ""
     if isinstance(date_value, datetime):
         return date_value.strftime('%d.%m.%Y %H:%M')
-    try:
-        date_obj = datetime.strptime(str(date_value), '%Y-%m-%d %H:%M:%S.%f')
-        return date_obj.strftime('%d.%m.%Y %H:%M')
-    except:
-        return str(date_value)[:16]
+    return str(date_value)[:16]
 
 @app.template_filter('format_date')
 def format_date_filter(date_value):
@@ -59,13 +55,7 @@ def format_date_filter(date_value):
         months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
         return f"{months[date_value.month - 1]} {date_value.year} г."
-    try:
-        date_obj = datetime.strptime(str(date_value), '%Y-%m-%d %H:%M:%S.%f')
-        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-        return f"{months[date_obj.month - 1]} {date_obj.year} г."
-    except:
-        return "январь 2026 г."
+    return "январь 2026 г."
 
 # ========== ДЕКОРАТОРЫ ==========
 def login_required(f):
@@ -262,8 +252,7 @@ def search():
 @app.route('/post/<int:post_id>')
 @login_required
 def post_detail(post_id):
-    posts = get_all_posts()
-    post = next((p for p in posts if p['id'] == post_id), None)
+    post = get_post(post_id)
     if not post:
         return "Post not found", 404
     
@@ -288,8 +277,7 @@ def like_post_route(post_id):
         like_post(post_id, session['user_id'])
         liked = True
     
-    posts = get_all_posts()
-    post = next((p for p in posts if p['id'] == post_id), None)
+    post = get_post(post_id)
     return jsonify({'liked': liked, 'likes_count': post['likes'] if post else 0})
 
 @app.route('/admin')
@@ -403,74 +391,6 @@ def api_messages(user_id):
 def api_unread_count():
     return jsonify({'count': get_unread_count(session['user_id'])})
 
-# ========== МАРШРУТЫ ДЛЯ ЗВОНКОВ ==========
-@app.route('/api/call/start', methods=['POST'])
-@login_required
-def api_call_start():
-    data = request.get_json()
-    receiver_id = data.get('receiver_id')
-    call_type = data.get('call_type')
-    
-    receiver = get_user_by_id(receiver_id)
-    if not receiver:
-        return jsonify({'success': False, 'error': 'Пользователь не найден'})
-    
-    active_call = get_active_call(receiver_id)
-    if active_call:
-        return jsonify({'success': False, 'error': 'Пользователь уже в звонке'})
-    
-    call_id = create_call(session['user_id'], receiver_id, call_type)
-    return jsonify({'success': True, 'call_id': call_id})
-
-@app.route('/api/call/check')
-@login_required
-def api_call_check():
-    call = get_active_call(session['user_id'])
-    if call:
-        caller = get_user_by_id(call['caller_id'])
-        return jsonify({
-            'call': {
-                'id': call['id'],
-                'caller_id': call['caller_id'],
-                'caller_name': caller['username'] if caller else 'Unknown',
-                'call_type': call['call_type']
-            }
-        })
-    return jsonify({'call': None})
-
-@app.route('/api/call/reject', methods=['POST'])
-@login_required
-def api_call_reject():
-    data = request.get_json()
-    call_id = data.get('call_id')
-    update_call_status(call_id, 'missed')
-    return jsonify({'success': True})
-
-@app.route('/api/call/end', methods=['POST'])
-@login_required
-def api_call_end():
-    data = request.get_json()
-    call_id = data.get('call_id')
-    update_call_status(call_id, 'ended')
-    return jsonify({'success': True})
-
-@app.route('/call/<int:call_id>')
-@login_required
-def call_page(call_id):
-    call = get_call(call_id)
-    if not call:
-        return "Звонок не найден", 404
-    
-    other_user_id = call['caller_id'] if call['receiver_id'] == session['user_id'] else call['receiver_id']
-    other_user = get_user_by_id(other_user_id)
-    
-    return render_template('call.html',
-                         call_id=call_id,
-                         call_type=call['call_type'],
-                         other_username=other_user['username'],
-                         other_avatar=other_user['avatar'],
-                         is_caller=(call['caller_id'] == session['user_id']))
-
 @app.route('/logout')
 def logout():
     session.clear()
@@ -481,6 +401,5 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
