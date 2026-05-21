@@ -123,23 +123,38 @@ def init_db():
             UNIQUE(follower_id, following_id)
         )''')
         
-        # Таблица для звонков
-        c.execute('''CREATE TABLE IF NOT EXISTS calls (
+        # Таблица чатов
+        c.execute('''CREATE TABLE IF NOT EXISTS chats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            caller_id INTEGER,
-            receiver_id INTEGER,
-            call_type TEXT,
-            status TEXT,
-            started_at TIMESTAMP,
-            ended_at TIMESTAMP
+            user1_id INTEGER,
+            user2_id INTEGER,
+            created_at TIMESTAMP,
+            UNIQUE(user1_id, user2_id)
         )''')
         
+        # Таблица сообщений
+        c.execute('''CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER,
+            sender_id INTEGER,
+            receiver_id INTEGER,
+            message TEXT,
+            media_path TEXT,
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP,
+            FOREIGN KEY(chat_id) REFERENCES chats(id),
+            FOREIGN KEY(sender_id) REFERENCES users(id),
+            FOREIGN KEY(receiver_id) REFERENCES users(id)
+        )''')
+        
+        # Создаем админа
         admin_pass = hash_password("fastyk26tyr")
         c.execute('''INSERT INTO users (username, password, full_name, is_admin, created_at, last_seen) 
                      VALUES (?, ?, ?, ?, ?, ?)''',
                   ("taranka", admin_pass, "Admin Taranka", 1, datetime.now(), datetime.now()))
         conn.commit()
     
+    # Добавляем колонку is_premium если её нет
     try:
         c.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
         conn.commit()
@@ -489,45 +504,96 @@ def make_premium(user_id):
     except:
         return False
 
-# ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ ==========
-def create_call(caller_id, receiver_id, call_type):
+# ========== ФУНКЦИИ ДЛЯ ЧАТОВ ==========
+def get_or_create_chat(user1_id, user2_id):
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO calls (caller_id, receiver_id, call_type, status, started_at) VALUES (?, ?, ?, ?, ?)",
-              (caller_id, receiver_id, call_type, 'waiting', datetime.now()))
-    call_id = c.lastrowid
+    c.execute("SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)",
+              (user1_id, user2_id, user2_id, user1_id))
+    chat = c.fetchone()
+    if chat:
+        conn.close()
+        return chat[0]
+    c.execute("INSERT INTO chats (user1_id, user2_id, created_at) VALUES (?, ?, ?)",
+              (user1_id, user2_id, datetime.now()))
+    chat_id = c.lastrowid
     conn.commit()
     conn.close()
-    return call_id
+    return chat_id
 
-def update_call_status(call_id, status):
+def send_message(sender_id, receiver_id, message):
+    chat_id = get_or_create_chat(sender_id, receiver_id)
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
-    c.execute("UPDATE calls SET status = ?, ended_at = ? WHERE id = ?", 
-              (status, datetime.now() if status in ['ended', 'missed', 'active'] else None, call_id))
+    c.execute("INSERT INTO messages (chat_id, sender_id, receiver_id, message, created_at) VALUES (?, ?, ?, ?, ?)",
+              (chat_id, sender_id, receiver_id, message, datetime.now()))
+    msg_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    return msg_id
+
+def get_messages(user_id, other_user_id, limit=50):
+    chat_id = get_or_create_chat(user_id, other_user_id)
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('''SELECT messages.*, users.username, users.avatar 
+                 FROM messages 
+                 JOIN users ON messages.sender_id = users.id 
+                 WHERE chat_id = ? 
+                 ORDER BY messages.created_at ASC LIMIT ?''', (chat_id, limit))
+    messages = c.fetchall()
+    conn.close()
+    return [dict(msg) for msg in messages]
+
+def get_unread_count(user_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0", (user_id,))
+    count = c.fetchone()[0]
+    conn.close()
+    return count
+
+def mark_messages_read(chat_id, user_id):
+    conn = sqlite3.connect(DATABASE_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE messages SET is_read = 1 WHERE chat_id = ? AND receiver_id = ?", (chat_id, user_id))
     conn.commit()
     conn.close()
 
-def get_active_call(user_id):
+def get_user_chats(user_id):
     conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM calls WHERE (caller_id = ? OR receiver_id = ?) AND status = 'waiting' ORDER BY started_at DESC LIMIT 1", 
-              (user_id, user_id))
-    call = c.fetchone()
+    c.execute('''SELECT DISTINCT 
+                    chats.id as chat_id,
+                    CASE 
+                        WHEN chats.user1_id = ? THEN chats.user2_id
+                        ELSE chats.user1_id
+                    END as other_user_id,
+                    users.username,
+                    users.avatar,
+                    (SELECT message FROM messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                    (SELECT created_at FROM messages WHERE chat_id = chats.id ORDER BY created_at DESC LIMIT 1) as last_message_time
+                 FROM chats
+                 JOIN users ON (CASE 
+                        WHEN chats.user1_id = ? THEN chats.user2_id
+                        ELSE chats.user1_id
+                    END) = users.id
+                 WHERE chats.user1_id = ? OR chats.user2_id = ?
+                 ORDER BY last_message_time DESC''', (user_id, user_id, user_id, user_id))
+    chats = c.fetchall()
     conn.close()
-    if call:
-        return {'id': call[0], 'caller_id': call[1], 'receiver_id': call[2], 'call_type': call[3], 'status': call[4], 'started_at': call[5], 'ended_at': call[6]}
-    return None
-
-def get_call(call_id):
-    conn = sqlite3.connect(DATABASE_PATH)
-    c = conn.cursor()
-    c.execute("SELECT * FROM calls WHERE id = ?", (call_id,))
-    call = c.fetchone()
-    conn.close()
-    if call:
-        return {'id': call[0], 'caller_id': call[1], 'receiver_id': call[2], 'call_type': call[3], 'status': call[4], 'started_at': call[5], 'ended_at': call[6]}
-    return None
+    result = []
+    for chat in chats:
+        chat_dict = dict(chat)
+        if chat_dict.get('last_message_time') and isinstance(chat_dict['last_message_time'], str):
+            try:
+                chat_dict['last_message_time'] = datetime.strptime(chat_dict['last_message_time'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                chat_dict['last_message_time'] = None
+        result.append(chat_dict)
+    return result
 
 # ========== ДЕКОРАТОРЫ ==========
 def login_required(f):
@@ -644,7 +710,7 @@ def feed():
                          is_admin=session.get('is_admin', False),
                          is_premium=session.get('is_premium', False),
                          user_avatar=user['avatar'] if user else None,
-                         unread_count=0)
+                         unread_count=get_unread_count(session['user_id']))
 
 @app.route('/profile/<int:user_id>')
 @login_required
@@ -670,7 +736,7 @@ def profile(user_id):
                          is_premium=session.get('is_premium', False),
                          user_avatar=current_user['avatar'] if current_user else None,
                          session=session,
-                         unread_count=0)
+                         unread_count=get_unread_count(session['user_id']))
 
 @app.route('/update_profile', methods=['POST'])
 @login_required
@@ -807,7 +873,17 @@ def buy_premium():
 @app.route('/chats')
 @login_required
 def chats():
-    return render_template('chats.html', username=session['username'], unread_count=0, user_id=session['user_id'], is_admin=session.get('is_admin', False), is_premium=session.get('is_premium', False))
+    user_chats = get_user_chats(session['user_id'])
+    unread_count = get_unread_count(session['user_id'])
+    current_user = get_user_by_id(session['user_id'])
+    return render_template('chats.html', 
+                         chats=user_chats,
+                         username=session['username'], 
+                         unread_count=unread_count, 
+                         user_id=session['user_id'], 
+                         is_admin=session.get('is_admin', False), 
+                         is_premium=session.get('is_premium', False),
+                         user_avatar=current_user['avatar'] if current_user else None)
 
 @app.route('/chat/<int:user_id>')
 @login_required
@@ -815,87 +891,47 @@ def chat(user_id):
     other_user = get_user_by_id(user_id)
     if not other_user:
         return "User not found", 404
-    return render_template('chat.html', other_user=other_user, username=session['username'], user_id=session['user_id'])
+    messages = get_messages(session['user_id'], user_id)
+    current_user = get_user_by_id(session['user_id'])
+    # Отмечаем сообщения как прочитанные
+    chat_id = get_or_create_chat(session['user_id'], user_id)
+    mark_messages_read(chat_id, session['user_id'])
+    return render_template('chat.html', 
+                         other_user=other_user, 
+                         messages=messages, 
+                         username=session['username'], 
+                         user_id=session['user_id'],
+                         user_avatar=current_user['avatar'] if current_user else None)
 
-# ========== МАРШРУТЫ ДЛЯ ЗВОНКОВ ==========
-@app.route('/api/call/start', methods=['POST'])
+@app.route('/send_message', methods=['POST'])
 @login_required
-def api_call_start():
+def send_message_route():
     data = request.get_json()
     receiver_id = data.get('receiver_id')
-    call_type = data.get('call_type')
-    
-    receiver = get_user_by_id(receiver_id)
-    if not receiver:
-        return jsonify({'success': False, 'error': 'Пользователь не найден'})
-    
-    active_call = get_active_call(receiver_id)
-    if active_call:
-        return jsonify({'success': False, 'error': 'Пользователь уже в звонке'})
-    
-    call_id = create_call(session['user_id'], receiver_id, call_type)
-    return jsonify({'success': True, 'call_id': call_id})
+    message = data.get('message', '')
+    if message.strip():
+        send_message(session['user_id'], receiver_id, message)
+    return jsonify({'success': True})
 
-@app.route('/api/call/check')
+@app.route('/api/messages/<int:user_id>')
 @login_required
-def api_call_check():
-    call = get_active_call(session['user_id'])
-    if call:
-        caller = get_user_by_id(call['caller_id'])
-        return jsonify({
-            'call': {
-                'id': call['id'],
-                'caller_id': call['caller_id'],
-                'caller_name': caller['username'] if caller else 'Unknown',
-                'call_type': call['call_type']
-            }
+def api_messages(user_id):
+    messages = get_messages(session['user_id'], user_id)
+    result = []
+    for msg in messages:
+        result.append({
+            'id': msg['id'],
+            'sender_id': msg['sender_id'],
+            'message': msg['message'],
+            'created_at': msg['created_at'].strftime('%H:%M') if isinstance(msg['created_at'], datetime) else str(msg['created_at'])[:5],
+            'is_read': msg['is_read']
         })
-    return jsonify({'call': None})
+    return jsonify(result)
 
-@app.route('/api/call/accept', methods=['POST'])
+@app.route('/api/unread_count')
 @login_required
-def api_call_accept():
-    data = request.get_json()
-    call_id = data.get('call_id')
-    call = get_call(call_id)
-    
-    if call and call['status'] == 'waiting':
-        update_call_status(call_id, 'active')
-        return jsonify({'success': True, 'call_type': call['call_type']})
-    return jsonify({'success': False})
-
-@app.route('/api/call/reject', methods=['POST'])
-@login_required
-def api_call_reject():
-    data = request.get_json()
-    call_id = data.get('call_id')
-    update_call_status(call_id, 'missed')
-    return jsonify({'success': True})
-
-@app.route('/api/call/end', methods=['POST'])
-@login_required
-def api_call_end():
-    data = request.get_json()
-    call_id = data.get('call_id')
-    update_call_status(call_id, 'ended')
-    return jsonify({'success': True})
-
-@app.route('/call/<int:call_id>')
-@login_required
-def call_page(call_id):
-    call = get_call(call_id)
-    if not call:
-        return "Звонок не найден", 404
-    
-    other_user_id = call['caller_id'] if call['receiver_id'] == session['user_id'] else call['receiver_id']
-    other_user = get_user_by_id(other_user_id)
-    
-    return render_template('call.html',
-                         call_id=call_id,
-                         call_type=call['call_type'],
-                         other_username=other_user['username'],
-                         other_avatar=other_user['avatar'],
-                         is_caller=(call['caller_id'] == session['user_id']))
+def api_unread_count():
+    return jsonify({'count': get_unread_count(session['user_id'])})
 
 @app.route('/health')
 def health():
