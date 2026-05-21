@@ -6,12 +6,7 @@
     <title>Чат с {{ other_user.username }} - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
@@ -20,8 +15,6 @@
             flex-direction: column;
             overflow: hidden;
         }
-        
-        /* Шапка чата */
         .chat-header {
             background: rgba(20, 30, 45, 0.95);
             backdrop-filter: blur(20px);
@@ -34,7 +27,6 @@
             top: 0;
             z-index: 10;
         }
-        
         .back-btn {
             background: none;
             border: none;
@@ -49,11 +41,7 @@
             justify-content: center;
             transition: background 0.3s;
         }
-        
-        .back-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
+        .back-btn:hover { background: rgba(255, 255, 255, 0.1); }
         .chat-avatar {
             width: 48px;
             height: 48px;
@@ -67,93 +55,21 @@
             font-weight: bold;
             color: white;
         }
-        
-        .chat-info {
-            flex: 1;
-        }
-        
-        .chat-name {
-            font-weight: 700;
-            font-size: 16px;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .chat-status {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.5);
-        }
-        
-        .verified-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            background: #667eea;
-            border-radius: 50%;
-            color: white;
-            font-size: 11px;
-        }
-        
-        .premium-badge {
-            font-size: 14px;
-            margin-left: 4px;
-        }
-        
-        /* Область сообщений */
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        /* Сообщение */
-        .message {
-            display: flex;
-            animation: fadeIn 0.2s ease-out;
-        }
-        
-        .message.sent {
-            justify-content: flex-end;
-        }
-        
-        .message.received {
-            justify-content: flex-start;
-        }
-        
-        .message-bubble {
-            max-width: 70%;
-            padding: 10px 14px;
-            border-radius: 20px;
-            word-wrap: break-word;
-        }
-        
-        .message.sent .message-bubble {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        
-        .message.received .message-bubble {
-            background: rgba(30, 40, 55, 0.9);
-            color: white;
-            border-bottom-left-radius: 4px;
-        }
-        
-        .message-time {
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.5);
-            margin-top: 4px;
-            text-align: right;
-        }
-        
-        /* Поле ввода */
+        .chat-info { flex: 1; }
+        .chat-name { font-weight: 700; font-size: 16px; color: white; display: flex; align-items: center; gap: 6px; }
+        .chat-status { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+        .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; }
+        .premium-badge { font-size: 14px; margin-left: 4px; }
+        .premium-nick { background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
+        @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        .messages-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .message { display: flex; animation: fadeIn 0.2s ease-out; }
+        .message.sent { justify-content: flex-end; }
+        .message.received { justify-content: flex-start; }
+        .message-bubble { max-width: 70%; padding: 10px 14px; border-radius: 20px; word-wrap: break-word; }
+        .message.sent .message-bubble { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-bottom-right-radius: 4px; }
+        .message.received .message-bubble { background: rgba(30, 40, 55, 0.9); color: white; border-bottom-left-radius: 4px; }
+        .message-time { font-size: 10px; color: rgba(255, 255, 255, 0.5); margin-top: 4px; text-align: right; }
         .message-input-container {
             background: rgba(20, 30, 45, 0.95);
             backdrop-filter: blur(20px);
@@ -163,7 +79,6 @@
             align-items: center;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
         .message-input {
             flex: 1;
             background: rgba(0, 0, 0, 0.3);
@@ -175,12 +90,7 @@
             resize: none;
             font-family: inherit;
         }
-        
-        .message-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
+        .message-input:focus { outline: none; border-color: #667eea; }
         .send-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
@@ -193,54 +103,13 @@
             cursor: pointer;
             transition: transform 0.2s;
         }
-        
-        .send-btn:active {
-            transform: scale(0.95);
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* Стили для пустого чата */
-        .empty-chat {
-            text-align: center;
-            padding: 60px;
-            color: rgba(255, 255, 255, 0.5);
-        }
-        
-        /* Прокрутка */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #667eea;
-            border-radius: 10px;
-        }
-        
-        @media (max-width: 768px) {
-            .message-bubble {
-                max-width: 85%;
-            }
-            .chat-header {
-                padding: 12px;
-            }
-            .messages-container {
-                padding: 16px;
-            }
-        }
+        .send-btn:active { transform: scale(0.95); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .empty-chat { text-align: center; padding: 60px; color: rgba(255, 255, 255, 0.5); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        ::-webkit-scrollbar-thumb { background: #667eea; border-radius: 10px; }
+        @media (max-width: 768px) { .message-bubble { max-width: 85%; } .chat-header { padding: 12px; } .messages-container { padding: 16px; } }
     </style>
 </head>
 <body>
@@ -255,7 +124,7 @@
         </div>
         <div class="chat-info">
             <div class="chat-name">
-                {{ other_user.full_name or other_user.username }}
+                <span class="{% if other_user.is_premium %}premium-nick{% endif %}">{{ other_user.full_name or other_user.username }}</span>
                 {% if other_user.is_admin %}<span class="verified-badge">✓</span>{% endif %}
                 {% if other_user.is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
             </div>
@@ -269,15 +138,12 @@
             <div class="message {% if msg.sender_id == session.user_id %}sent{% else %}received{% endif %}">
                 <div class="message-bubble">
                     {{ msg.message }}
-                    <div class="message-time">{{ msg.created_at.strftime('%H:%M') if msg.created_at else '' }}</div>
+                    <div class="message-time">{% if msg.created_at %}{% if msg.created_at.strftime %}{{ msg.created_at.strftime('%H:%M') }}{% else %}{{ msg.created_at }}{% endif %}{% endif %}</div>
                 </div>
             </div>
             {% endfor %}
         {% else %}
-            <div class="empty-chat">
-                <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
-                <p>Напишите первое сообщение</p>
-            </div>
+            <div class="empty-chat"><div style="font-size: 48px; margin-bottom: 16px;">💬</div><p>Напишите первое сообщение</p></div>
         {% endif %}
     </div>
     
@@ -295,14 +161,22 @@
         const otherUserId = {{ other_user.id }};
         let lastMessageId = {{ messages[-1].id if messages else 0 }};
         let checkInterval = null;
-        
         const messagesContainer = document.getElementById('messagesContainer');
         const messageInput = document.getElementById('messageInput');
+        
+        function formatTime(dateValue) {
+            if (!dateValue) return '';
+            if (dateValue.strftime) return dateValue.strftime('%H:%M');
+            if (typeof dateValue === 'string') {
+                const parts = dateValue.split(' ');
+                if (parts.length > 1) return parts[1].substring(0, 5);
+            }
+            return '';
+        }
         
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
-            
             fetch('/send_message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -325,7 +199,6 @@
                 .then(response => response.json())
                 .then(messages => {
                     const shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
-                    
                     if (messages.length > 0 && messages[messages.length - 1].id !== lastMessageId) {
                         messagesContainer.innerHTML = '';
                         messages.forEach(msg => {
@@ -334,42 +207,26 @@
                             messageDiv.innerHTML = `
                                 <div class="message-bubble">
                                     ${escapeHtml(msg.message)}
-                                    <div class="message-time">${msg.created_at}</div>
+                                    <div class="message-time">${msg.created_at || ''}</div>
                                 </div>
                             `;
                             messagesContainer.appendChild(messageDiv);
                         });
                         lastMessageId = messages[messages.length - 1]?.id || 0;
-                        
-                        if (shouldScroll) {
-                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                        }
+                        if (shouldScroll) messagesContainer.scrollTop = messagesContainer.scrollHeight;
                     }
                 });
         }
         
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
         
-        // Автоматическая прокрутка вниз при загрузке
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        
-        // Авто-обновление сообщений каждые 2 секунды
         checkInterval = setInterval(loadMessages, 2000);
-        
-        // Авто-изменение высоты textarea
         messageInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
-        
-        // Очистка интервала при уходе со страницы
-        window.addEventListener('beforeunload', () => {
-            if (checkInterval) clearInterval(checkInterval);
-        });
+        window.addEventListener('beforeunload', () => { if (checkInterval) clearInterval(checkInterval); });
     </script>
 </body>
 </html>
