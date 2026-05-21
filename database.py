@@ -55,7 +55,7 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id)
     )''')
     
-    # Таблица лайков на постах
+    # Таблица лайков
     c.execute('''CREATE TABLE IF NOT EXISTS post_likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         post_id INTEGER,
@@ -63,7 +63,6 @@ def init_db():
         UNIQUE(post_id, user_id)
     )''')
     
-    # Таблица лайков на комментариях
     c.execute('''CREATE TABLE IF NOT EXISTS comment_likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         comment_id INTEGER,
@@ -218,7 +217,10 @@ def get_all_posts():
     for post in posts:
         post_dict = dict(post)
         if isinstance(post_dict['created_at'], str):
-            post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            try:
+                post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                post_dict['created_at'] = datetime.now()
         result.append(post_dict)
     return result
 
@@ -238,7 +240,10 @@ def get_user_posts(user_id):
     for post in posts:
         post_dict = dict(post)
         if isinstance(post_dict['created_at'], str):
-            post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            try:
+                post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                post_dict['created_at'] = datetime.now()
         result.append(post_dict)
     return result
 
@@ -255,7 +260,10 @@ def get_post(post_id):
     if post:
         post_dict = dict(post)
         if isinstance(post_dict['created_at'], str):
-            post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            try:
+                post_dict['created_at'] = datetime.strptime(post_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                post_dict['created_at'] = datetime.now()
         return post_dict
     return None
 
@@ -283,7 +291,10 @@ def get_comments(post_id):
     for comment in comments:
         comment_dict = dict(comment)
         if isinstance(comment_dict['created_at'], str):
-            comment_dict['created_at'] = datetime.strptime(comment_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            try:
+                comment_dict['created_at'] = datetime.strptime(comment_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                comment_dict['created_at'] = datetime.now()
         result.append(comment_dict)
     return result
 
@@ -478,19 +489,15 @@ def make_premium(user_id):
     conn.close()
 
 # ========== ФУНКЦИИ ДЛЯ ЧАТОВ ==========
-
 def get_or_create_chat(user1_id, user2_id):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    
     c.execute("SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)",
               (user1_id, user2_id, user2_id, user1_id))
     chat = c.fetchone()
-    
     if chat:
         conn.close()
         return chat[0]
-    
     c.execute("INSERT INTO chats (user1_id, user2_id, created_at) VALUES (?, ?, ?)",
               (user1_id, user2_id, datetime.now()))
     chat_id = c.lastrowid
@@ -521,22 +528,16 @@ def get_messages(user_id, other_user_id, limit=50):
                  ORDER BY messages.created_at ASC LIMIT ?''', (chat_id, limit))
     messages = c.fetchall()
     conn.close()
-    
     result = []
     for msg in messages:
         msg_dict = dict(msg)
         if isinstance(msg_dict['created_at'], str):
-            msg_dict['created_at'] = datetime.strptime(msg_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            try:
+                msg_dict['created_at'] = datetime.strptime(msg_dict['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                msg_dict['created_at'] = datetime.now()
         result.append(msg_dict)
     return result
-
-def mark_messages_as_read(chat_id, user_id):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute("UPDATE messages SET is_read = 1 WHERE chat_id = ? AND receiver_id = ? AND is_read = 0",
-              (chat_id, user_id))
-    conn.commit()
-    conn.close()
 
 def get_unread_count(user_id):
     conn = sqlite3.connect('users.db')
@@ -569,10 +570,18 @@ def get_user_chats(user_id):
                  ORDER BY last_message_time DESC''', (user_id, user_id, user_id, user_id))
     chats = c.fetchall()
     conn.close()
-    return [dict(chat) for chat in chats]
+    result = []
+    for chat in chats:
+        chat_dict = dict(chat)
+        if chat_dict.get('last_message_time') and isinstance(chat_dict['last_message_time'], str):
+            try:
+                chat_dict['last_message_time'] = datetime.strptime(chat_dict['last_message_time'], '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                chat_dict['last_message_time'] = None
+        result.append(chat_dict)
+    return result
 
 # ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ ==========
-
 def create_call(caller_id, receiver_id, call_type):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -598,7 +607,9 @@ def get_active_call(user_id):
               (user_id, user_id))
     call = c.fetchone()
     conn.close()
-    return call
+    if call:
+        return {'id': call[0], 'caller_id': call[1], 'receiver_id': call[2], 'call_type': call[3], 'status': call[4], 'started_at': call[5], 'ended_at': call[6]}
+    return None
 
 def get_call(call_id):
     conn = sqlite3.connect('users.db')
@@ -607,13 +618,5 @@ def get_call(call_id):
     call = c.fetchone()
     conn.close()
     if call:
-        return {
-            'id': call[0],
-            'caller_id': call[1],
-            'receiver_id': call[2],
-            'call_type': call[3],
-            'status': call[4],
-            'started_at': call[5],
-            'ended_at': call[6]
-        }
+        return {'id': call[0], 'caller_id': call[1], 'receiver_id': call[2], 'call_type': call[3], 'status': call[4], 'started_at': call[5], 'ended_at': call[6]}
     return None
