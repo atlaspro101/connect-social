@@ -5,406 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Звонок - Connect</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
             height: 100vh;
             overflow: hidden;
         }
-        
-        .call-container {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-        
-        /* Видео */
-        .remote-video {
-            flex: 1;
-            background: #000;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .remote-video video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .remote-avatar {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 64px;
-            font-weight: bold;
-            color: white;
-        }
-        
-        .local-video {
-            position: absolute;
-            bottom: 100px;
-            right: 20px;
-            width: 120px;
-            height: 160px;
-            background: #1a1a2e;
-            border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.3);
-            overflow: hidden;
-            z-index: 10;
-        }
-        
-        .local-video video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        /* Информация о звонке */
-        .call-info {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            background: rgba(0,0,0,0.5);
-            padding: 15px;
-            backdrop-filter: blur(10px);
-            z-index: 10;
-        }
-        
-        .call-info h2 {
-            color: white;
-            font-size: 20px;
-        }
-        
-        .call-info p {
-            color: rgba(255,255,255,0.7);
-            font-size: 12px;
-            margin-top: 5px;
-        }
-        
-        /* Кнопки управления */
-        .call-controls {
-            position: fixed;
-            bottom: 30px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(20px);
-            z-index: 20;
-        }
-        
-        .call-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .call-btn:hover {
-            transform: scale(1.1);
-        }
-        
-        .call-btn.mute {
-            background: #ff4757;
-            color: white;
-        }
-        
-        .call-btn.video {
-            background: #667eea;
-            color: white;
-        }
-        
-        .call-btn.end {
-            background: #ff4757;
-            color: white;
-            width: 70px;
-            height: 70px;
-        }
-        
-        .call-btn.switch {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
-        
-        /* Таймер */
-        .call-timer {
-            position: absolute;
-            bottom: 120px;
-            left: 20px;
-            background: rgba(0,0,0,0.6);
-            padding: 5px 12px;
-            border-radius: 20px;
-            color: white;
-            font-size: 14px;
-            font-family: monospace;
-            z-index: 10;
-        }
-        
+        .call-container { height: 100vh; display: flex; flex-direction: column; position: relative; }
+        .remote-video { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+        .remote-avatar { width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 64px; font-weight: bold; color: white; }
+        .call-info { position: absolute; top: 20px; left: 0; right: 0; text-align: center; background: rgba(0,0,0,0.5); padding: 15px; z-index: 10; }
+        .call-info h2 { color: white; font-size: 20px; }
+        .call-info p { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 5px; }
+        .call-controls { position: fixed; bottom: 30px; left: 0; right: 0; display: flex; justify-content: center; gap: 20px; padding: 20px; background: rgba(0,0,0,0.6); z-index: 20; }
+        .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; font-size: 28px; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; }
+        .call-btn:hover { transform: scale(1.1); }
+        .call-btn.end { background: #ff4757; color: white; width: 70px; height: 70px; }
+        .call-timer { position: absolute; bottom: 120px; left: 20px; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; color: white; font-size: 14px; z-index: 10; }
         @media (max-width: 768px) {
-            .local-video {
-                width: 80px;
-                height: 120px;
-                bottom: 90px;
-            }
-            .call-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 22px;
-            }
-            .call-btn.end {
-                width: 60px;
-                height: 60px;
-            }
+            .call-btn { width: 50px; height: 50px; font-size: 22px; }
+            .call-btn.end { width: 60px; height: 60px; }
         }
+        .connecting { animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
     <div class="call-container">
         <div class="remote-video" id="remoteVideo">
             <div class="remote-avatar" id="remoteAvatar">{{ other_username[0].upper() }}</div>
-            <video id="remoteVideoElement" autoplay playsinline></video>
         </div>
-        
-        <div class="local-video" id="localVideo">
-            <video id="localVideoElement" autoplay playsinline muted></video>
-        </div>
-        
         <div class="call-info">
             <h2 id="callerName">{{ other_username }}</h2>
-            <p id="callStatus">Соединение...</p>
+            <p id="callStatus" class="connecting">Соединение...</p>
         </div>
-        
         <div class="call-timer" id="callTimer">00:00</div>
-        
         <div class="call-controls">
-            <button class="call-btn mute" id="muteBtn" onclick="toggleMute()">🎤</button>
-            <button class="call-btn video" id="videoBtn" onclick="toggleVideo()">📹</button>
-            <button class="call-btn switch" onclick="switchCamera()">🔄</button>
             <button class="call-btn end" onclick="endCall()">📞</button>
         </div>
     </div>
     
     <script>
-        // Конфигурация WebRTC
-        const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
-        };
-        
         let callId = {{ call_id }};
-        let callType = '{{ call_type }}';
         let isCaller = {{ is_caller|lower }};
-        let peerConnection = null;
-        let localStream = null;
         let callStartTime = null;
         let timerInterval = null;
-        let webSocket = null;
+        let checkInterval = null;
         
-        // Получаем элементы
-        const localVideoElement = document.getElementById('localVideoElement');
-        const remoteVideoElement = document.getElementById('remoteVideoElement');
-        const remoteAvatar = document.getElementById('remoteAvatar');
-        const muteBtn = document.getElementById('muteBtn');
-        const videoBtn = document.getElementById('videoBtn');
         const callStatus = document.getElementById('callStatus');
+        const callTimer = document.getElementById('callTimer');
         
-        // Инициализация WebSocket для сигнализации
-        function initWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/call/${callId}`;
-            webSocket = new WebSocket(wsUrl);
-            
-            webSocket.onmessage = async (event) => {
-                const data = JSON.parse(event.data);
-                await handleSignalingData(data);
-            };
-            
-            webSocket.onclose = () => {
-                console.log('WebSocket закрыт');
-                endCall();
-            };
-        }
-        
-        async function handleSignalingData(data) {
-            switch(data.type) {
-                case 'offer':
-                    await handleOffer(data);
-                    break;
-                case 'answer':
-                    await handleAnswer(data);
-                    break;
-                case 'ice-candidate':
-                    if (peerConnection) {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        // Функция для проверки статуса звонка
+        function checkCallStatus() {
+            fetch('/api/call/check')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.call && data.call.id == callId) {
+                        if (data.call.status === 'active') {
+                            // Звонок принят
+                            callStatus.textContent = 'Разговор';
+                            callStatus.classList.remove('connecting');
+                            startTimer();
+                            if (checkInterval) clearInterval(checkInterval);
+                        } else if (data.call.status === 'ended' || data.call.status === 'missed') {
+                            // Звонок завершен
+                            endCall();
+                        }
+                    } else if (isCaller) {
+                        // Если мы инициатор и звонка нет - возможно он был отклонен
+                        callStatus.textContent = 'Ожидание ответа...';
                     }
-                    break;
-                case 'end-call':
-                    endCall();
-                    break;
-            }
-        }
-        
-        async function startCall() {
-            try {
-                // Запрашиваем доступ к медиа
-                const constraints = {
-                    audio: true,
-                    video: callType === 'video'
-                };
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                localVideoElement.srcObject = localStream;
-                
-                if (!callType === 'video') {
-                    document.getElementById('localVideo').style.display = 'none';
-                }
-                
-                peerConnection = new RTCPeerConnection(configuration);
-                
-                // Добавляем локальные треки
-                localStream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, localStream);
                 });
-                
-                // Обработка удаленных треков
-                peerConnection.ontrack = (event) => {
-                    remoteVideoElement.srcObject = event.streams[0];
-                    remoteAvatar.style.display = 'none';
-                    remoteVideoElement.style.display = 'block';
-                };
-                
-                // Обработка ICE кандидатов
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        webSocket.send(JSON.stringify({
-                            type: 'ice-candidate',
-                            candidate: event.candidate
-                        }));
-                    }
-                };
-                
-                // Создаем offer если мы инициатор
-                if (isCaller) {
-                    const offer = await peerConnection.createOffer();
-                    await peerConnection.setLocalDescription(offer);
-                    webSocket.send(JSON.stringify({
-                        type: 'offer',
-                        sdp: offer.sdp
-                    }));
-                    callStatus.textContent = 'Звоним...';
-                }
-                
-            } catch (error) {
-                console.error('Ошибка:', error);
-                callStatus.textContent = 'Ошибка доступа к камере/микрофону';
-            }
         }
         
-        async function handleOffer(data) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription({
-                type: 'offer',
-                sdp: data.sdp
-            }));
+        // Если мы инициатор, ждем ответа
+        if (isCaller) {
+            callStatus.textContent = 'Звоним...';
+            // Проверяем статус каждую секунду
+            checkInterval = setInterval(checkCallStatus, 1000);
             
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            webSocket.send(JSON.stringify({
-                type: 'answer',
-                sdp: answer.sdp
-            }));
-            
-            callStatus.textContent = 'Соединение установлено';
-            startTimer();
-        }
-        
-        async function handleAnswer(data) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription({
-                type: 'answer',
-                sdp: data.sdp
-            }));
-            callStatus.textContent = 'Соединение установлено';
-            startTimer();
-        }
-        
-        function toggleMute() {
-            if (localStream) {
-                const audioTrack = localStream.getAudioTracks()[0];
-                if (audioTrack) {
-                    audioTrack.enabled = !audioTrack.enabled;
-                    muteBtn.textContent = audioTrack.enabled ? '🎤' : '🔇';
-                    muteBtn.style.background = audioTrack.enabled ? '#ff4757' : '#667eea';
-                }
-            }
-        }
-        
-        function toggleVideo() {
-            if (localStream && callType === 'video') {
-                const videoTrack = localStream.getVideoTracks()[0];
-                if (videoTrack) {
-                    videoTrack.enabled = !videoTrack.enabled;
-                    videoBtn.textContent = videoTrack.enabled ? '📹' : '🚫';
-                    videoBtn.style.background = videoTrack.enabled ? '#667eea' : '#ff4757';
-                    document.getElementById('localVideo').style.opacity = videoTrack.enabled ? '1' : '0.5';
-                }
-            }
-        }
-        
-        async function switchCamera() {
-            if (localStream && callType === 'video') {
-                const videoTrack = localStream.getVideoTracks()[0];
-                const enabled = videoTrack.enabled;
-                const currentDevice = videoTrack.getSettings().deviceId;
-                
-                // Получаем все камеры
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                if (videoDevices.length > 1) {
-                    const newDevice = videoDevices.find(d => d.deviceId !== currentDevice) || videoDevices[0];
-                    const newStream = await navigator.mediaDevices.getUserMedia({
-                        video: { deviceId: { exact: newDevice.deviceId } },
-                        audio: true
+            // Автоматически завершаем через 30 секунд без ответа
+            setTimeout(() => {
+                fetch('/api/call/check')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.call && data.call.id == callId && data.call.status === 'waiting') {
+                            endCall();
+                            alert('Абонент не ответил');
+                        }
                     });
-                    
-                    // Заменяем видеотрек
-                    const newVideoTrack = newStream.getVideoTracks()[0];
-                    const oldVideoTrack = localStream.getVideoTracks()[0];
-                    localStream.removeTrack(oldVideoTrack);
-                    localStream.addTrack(newVideoTrack);
-                    oldVideoTrack.stop();
-                    
-                    localVideoElement.srcObject = localStream;
-                    
-                    // Обновляем peer connection
-                    const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
-                    if (sender) await sender.replaceTrack(newVideoTrack);
+            }, 30000);
+        } else {
+            // Если мы получатель, сразу показываем ожидание
+            callStatus.textContent = 'Входящий звонок...';
+            checkInterval = setInterval(checkCallStatus, 1000);
+            
+            // Спрашиваем ответ через 2 секунды
+            setTimeout(() => {
+                const accept = confirm('Входящий звонок от ' + document.getElementById('callerName').innerText + '. Принять?');
+                if (accept) {
+                    fetch('/api/call/accept', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ call_id: callId })
+                    }).then(() => {
+                        callStatus.textContent = 'Разговор';
+                        callStatus.classList.remove('connecting');
+                        startTimer();
+                    });
+                } else {
+                    fetch('/api/call/reject', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ call_id: callId })
+                    }).then(() => endCall());
                 }
-            }
+            }, 2000);
         }
         
         function startTimer() {
@@ -413,54 +130,30 @@
                 const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
                 const minutes = Math.floor(elapsed / 60);
                 const seconds = elapsed % 60;
-                document.getElementById('callTimer').textContent = 
-                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                callTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }, 1000);
         }
         
         function endCall() {
-            // Закрываем WebSocket
-            if (webSocket && webSocket.readyState === WebSocket.OPEN) {
-                webSocket.send(JSON.stringify({ type: 'end-call' }));
-                webSocket.close();
-            }
+            if (timerInterval) clearInterval(timerInterval);
+            if (checkInterval) clearInterval(checkInterval);
             
-            // Останавливаем потоки
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            if (peerConnection) {
-                peerConnection.close();
-            }
-            if (timerInterval) {
-                clearInterval(timerInterval);
-            }
-            
-            // Уведомляем сервер о завершении звонка
             fetch('/api/call/end', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ call_id: callId })
-            });
+            }).catch(() => {});
             
-            // Закрываем окно через 1 секунду
-            setTimeout(() => {
-                window.close();
-            }, 1000);
+            setTimeout(() => window.close(), 500);
         }
         
-        // Инициализация
-        initWebSocket();
-        startCall();
-        
-        // Обработка закрытия окна
+        // Закрытие окна при завершении
         window.addEventListener('beforeunload', () => {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            if (peerConnection) {
-                peerConnection.close();
-            }
+            fetch('/api/call/end', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ call_id: callId })
+            }).catch(() => {});
         });
     </script>
 </body>

@@ -42,7 +42,7 @@ def keep_alive():
     while True:
         try:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"[KEEP-ALIVE] {current_time} - Сервер активен, поток поддерживается")
+            print(f"[KEEP-ALIVE] {current_time} - Сервер активен")
             
             if 'onrender.com' in url:
                 response = requests.get(url, timeout=10)
@@ -65,16 +65,6 @@ def format_time_filter(date_value):
         return ""
     if isinstance(date_value, datetime):
         return date_value.strftime('%d.%m.%Y %H:%M')
-    if isinstance(date_value, str):
-        try:
-            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
-            return date_obj.strftime('%d.%m.%Y %H:%M')
-        except:
-            try:
-                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
-                return date_obj.strftime('%d.%m.%Y %H:%M')
-            except:
-                return date_value[:16]
     return str(date_value)[:16]
 
 @app.template_filter('format_date')
@@ -85,14 +75,6 @@ def format_date_filter(date_value):
         months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
         return f"{months[date_value.month - 1]} {date_value.year} г."
-    if isinstance(date_value, str):
-        try:
-            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
-            months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-            return f"{months[date_obj.month - 1]} {date_obj.year} г."
-        except:
-            return "январь 2026 г."
     return "январь 2026 г."
 
 # ========== ИНИЦИАЛИЗАЦИЯ БД ==========
@@ -172,21 +154,6 @@ def init_db():
     # Добавляем колонку is_premium если её нет
     try:
         c.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0")
-        conn.commit()
-    except:
-        pass
-    
-    # Добавляем таблицу calls если её нет
-    try:
-        c.execute('''CREATE TABLE IF NOT EXISTS calls (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            caller_id INTEGER,
-            receiver_id INTEGER,
-            call_type TEXT,
-            status TEXT,
-            started_at TIMESTAMP,
-            ended_at TIMESTAMP
-        )''')
         conn.commit()
     except:
         pass
@@ -557,7 +524,7 @@ def make_premium(user_id):
     except:
         return False
 
-# ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ ==========
+# ========== ФУНКЦИИ ДЛЯ ЗВОНКОВ (упрощенные) ==========
 def create_call(caller_id, receiver_id, call_type):
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
@@ -812,6 +779,7 @@ def add_comment_route(post_id):
 @login_required
 def like_post_route(post_id):
     if has_liked_post(post_id, session['user_id']):
+        unlike_post(post_id, session['user_id'])
         return jsonify({'liked': False, 'likes_count': 0})
     else:
         like_post(post_id, session['user_id'])
@@ -897,6 +865,7 @@ def api_call_start():
     if not receiver:
         return jsonify({'success': False, 'error': 'Пользователь не найден'})
     
+    # Проверяем, есть ли активный звонок
     active_call = get_active_call(receiver_id)
     if active_call:
         return jsonify({'success': False, 'error': 'Пользователь уже в звонке'})
@@ -919,6 +888,18 @@ def api_call_check():
             }
         })
     return jsonify({'call': None})
+
+@app.route('/api/call/accept', methods=['POST'])
+@login_required
+def api_call_accept():
+    data = request.get_json()
+    call_id = data.get('call_id')
+    call = get_call(call_id)
+    
+    if call and call['status'] == 'waiting':
+        update_call_status(call_id, 'active')
+        return jsonify({'success': True, 'call': call})
+    return jsonify({'success': False})
 
 @app.route('/api/call/reject', methods=['POST'])
 @login_required
@@ -983,7 +964,7 @@ if __name__ == '__main__':
     print(f"📁 Папка загрузок: {UPLOAD_FOLDER}")
     print("="*50)
     print("[KEEP-ALIVE] Сервер будет пинговать себя каждые 10 секунд")
-    print("[ЗВОНКИ] Функция аудио/видео звонков активирована")
+    print("[ЗВОНКИ] Функция звонков активирована")
     print("="*50 + "\n")
     
     port = int(os.environ.get('PORT', 5000))
