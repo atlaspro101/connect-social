@@ -1118,6 +1118,20 @@ def api_qr_login(session_id):
     
     return redirect(url_for('login'))
 
+# Также добавьте маршрут для получения информации о текущем пользователе
+@app.route('/api/me')
+@login_required
+def api_me():
+    user = get_user_by_id(session['user_id'])
+    if user:
+        return jsonify({'user': {
+            'id': user['id'],
+            'username': user['username'],
+            'full_name': user['full_name'],
+            'avatar': user['avatar']
+        }})
+    return jsonify({'user': None})
+
 # ========== 2FA ==========
 @app.route('/2fa/setup', methods=['POST'])
 @login_required

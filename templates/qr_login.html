@@ -137,6 +137,18 @@
         const sessionId = '{{ session_id }}';
         let checkInterval = null;
         let ws = null;
+        let redirectDone = false;
+        
+        // Функция для редиректа на feed
+        function redirectToFeed() {
+            if (redirectDone) return;
+            redirectDone = true;
+            document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
+            document.getElementById('qrStatus').className = 'status confirmed';
+            setTimeout(() => {
+                window.location.href = '/feed';
+            }, 500);
+        }
         
         // WebSocket для реального времени
         try {
@@ -146,16 +158,8 @@
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
                 if (data.type === 'login_success') {
-                    document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
-                    document.getElementById('qrStatus').className = 'status confirmed';
-                    
-                    // Очищаем интервал
                     if (checkInterval) clearInterval(checkInterval);
-                    
-                    // Перенаправляем сразу на feed
-                    setTimeout(() => {
-                        window.location.href = '/feed';
-                    }, 500);
+                    redirectToFeed();
                 }
             };
             
@@ -181,14 +185,11 @@
                 .then(data => {
                     if (data.status === 'confirmed') {
                         clearInterval(checkInterval);
-                        document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
-                        document.getElementById('qrStatus').className = 'status confirmed';
-                        setTimeout(() => {
-                            window.location.href = '/feed';
-                        }, 500);
+                        redirectToFeed();
                     }
-                });
-        }, 2000);
+                })
+                .catch(() => {});
+        }, 1000);
         
         // Очистка при уходе
         window.addEventListener('beforeunload', () => {
