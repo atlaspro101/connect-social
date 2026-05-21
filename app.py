@@ -11,12 +11,6 @@ import requests
 import json
 import secrets
 
-# Для QR и WebSocket
-from flask_sock import Sock
-
-# Для 2FA
-import pyotp
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, 'users.db')
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
@@ -25,8 +19,6 @@ app = Flask(__name__)
 app.secret_key = 'connect-secret-key-2026-render'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-
-sock = Sock(app)
 
 # Создаем папки
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'photos'), exist_ok=True)
@@ -47,8 +39,6 @@ def hash_password(password):
 # ========== Хранилища ==========
 qr_sessions = {}
 ws_connections = {}
-verification_codes = {}
-reset_tokens = {}
 
 # ========== KEEP-ALIVE ФУНКЦИЯ ==========
 def keep_alive():
@@ -261,6 +251,14 @@ def init_db():
             UNIQUE(user_id, message_id)
         )''')
         
+        c.execute('''CREATE TABLE qr_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT UNIQUE,
+            user_id INTEGER,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP
+        )''')
+        
         # Вставляем стандартные достижения
         achievements = [
             ('Первый пост', 'Опубликуйте свой первый пост', '📝', 1),
@@ -319,18 +317,7 @@ def get_user_by_id(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, experience, email, phone, twofa_secret, created_at, last_seen FROM users WHERE id=?", (user_id,))
-        user = c.fetchone()
-        conn.close()
-        return dict(user) if user else None
-    except:
-        return None
-
-def get_user_by_email(email):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT id, username, email FROM users WHERE email = ?", (email,))
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, experience, email, phone, created_at, last_seen FROM users WHERE id=?", (user_id,))
         user = c.fetchone()
         conn.close()
         return dict(user) if user else None
@@ -965,6 +952,43 @@ def search_messages(chat_id, query, user_id):
     except:
         return []
 
+# ========== ФУНКЦИИ ДЛЯ QR ВХОДА ==========
+def create_qr_session(session_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("INSERT INTO qr_sessions (session_id, created_at) VALUES (?, ?)",
+                  (session_id, datetime.now()))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+def get_qr_session(session_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT * FROM qr_sessions WHERE session_id = ? AND status = 'pending'", (session_id,))
+        session = c.fetchone()
+        conn.close()
+        return dict(session) if session else None
+    except:
+        return None
+
+def confirm_qr_session(session_id, user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("UPDATE qr_sessions SET status = 'confirmed', user_id = ? WHERE session_id = ?", (user_id, session_id))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
 # ========== ДЕКОРАТОРЫ ==========
 def login_required(f):
     @wraps(f)
@@ -1033,48 +1057,31 @@ def login():
             session['is_admin'] = user['is_admin']
             session['is_premium'] = user['is_premium'] if len(user) > 9 else 0
             update_last_seen(user['id'])
-            
-            # Проверка 2FA
-            user_data = get_user_by_id(user['id'])
-            if user_data and user_data.get('twofa_secret'):
-                return redirect(url_for('twofa_verify'))
-            
             return redirect(url_for('feed'))
         else:
             return render_template('login.html', error='Неверное имя пользователя или пароль')
     return render_template('login.html')
 
 # ========== QR ВХОД ==========
-@sock.route('/ws/qr/<session_id>')
-def ws_qr(ws, session_id):
-    ws_connections[session_id] = ws
-    try:
-        while True:
-            data = ws.receive()
-            if data:
-                pass
-    except:
-        pass
-    finally:
-        if session_id in ws_connections:
-            del ws_connections[session_id]
-
 @app.route('/qr-login')
 def qr_login():
+    # Генерируем уникальный ID сессии
     session_id = secrets.token_urlsafe(32)
     qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
+    create_qr_session(session_id)
     return render_template('qr_login.html', session_id=session_id)
 
 @app.route('/qr/scan/<session_id>')
 def qr_scan(session_id):
-    if session_id not in qr_sessions:
-        qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
     return render_template('qr_scan.html', session_id=session_id)
 
 @app.route('/api/qr/status/<session_id>')
 def api_qr_status(session_id):
-    if session_id in qr_sessions:
-        return jsonify({'status': qr_sessions[session_id].get('status', 'pending')})
+    qr_session = get_qr_session(session_id)
+    if qr_session and qr_session.get('status') == 'confirmed':
+        user = get_user_by_id(qr_session.get('user_id'))
+        if user:
+            return jsonify({'status': 'confirmed', 'user_id': user['id'], 'username': user['username']})
     return jsonify({'status': 'pending'})
 
 @app.route('/api/qr/confirm', methods=['POST'])
@@ -1083,29 +1090,20 @@ def api_qr_confirm():
     data = request.get_json()
     session_id = data.get('session_id')
     
+    confirm_qr_session(session_id, session['user_id'])
+    
+    # Обновляем в памяти
     if session_id in qr_sessions:
         qr_sessions[session_id]['status'] = 'confirmed'
         qr_sessions[session_id]['user_id'] = session['user_id']
-        
-        # Отправляем через WebSocket
-        if session_id in ws_connections:
-            try:
-                ws_connections[session_id].send(json.dumps({
-                    'type': 'login_success',
-                    'user_id': session['user_id'],
-                    'username': session['username']
-                }))
-            except:
-                pass
-        
-        return jsonify({'success': True, 'user_id': session['user_id'], 'username': session['username']})
     
-    return jsonify({'success': False})
+    return jsonify({'success': True})
 
 @app.route('/api/qr/login/<session_id>')
 def api_qr_login(session_id):
-    if session_id in qr_sessions and qr_sessions[session_id].get('status') == 'confirmed':
-        user_id = qr_sessions[session_id].get('user_id')
+    qr_session = get_qr_session(session_id)
+    if qr_session and qr_session.get('status') == 'confirmed':
+        user_id = qr_session.get('user_id')
         user = get_user_by_id(user_id)
         if user:
             session['user_id'] = user['id']
@@ -1113,138 +1111,18 @@ def api_qr_login(session_id):
             session['is_admin'] = user['is_admin']
             session['is_premium'] = user['is_premium']
             update_last_seen(user['id'])
-            # Перенаправляем сразу на feed
             return redirect(url_for('feed'))
     
     return redirect(url_for('login'))
 
-# ========== 2FA ==========
-@app.route('/2fa/setup', methods=['POST'])
-@login_required
-def setup_2fa():
-    secret = pyotp.random_base32()
-    totp = pyotp.TOTP(secret)
-    provisioning_uri = totp.provisioning_uri(session['username'], issuer_name="Connect")
-    
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("UPDATE users SET twofa_secret = ? WHERE id = ?", (secret, session['user_id']))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'secret': secret, 'uri': provisioning_uri})
-
-@app.route('/2fa/verify', methods=['GET', 'POST'])
-def twofa_verify():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    
-    if request.method == 'POST':
-        code = request.form.get('code')
-        user = get_user_by_id(session['user_id'])
-        
-        if user and user.get('twofa_secret'):
-            totp = pyotp.TOTP(user['twofa_secret'])
-            if totp.verify(code):
-                session['2fa_verified'] = True
-                return redirect(url_for('feed'))
-        
-        return render_template('twofa.html', error='Неверный код')
-    
-    return render_template('twofa.html')
-
-@app.route('/2fa/disable', methods=['POST'])
-@login_required
-def disable_2fa():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("UPDATE users SET twofa_secret = NULL WHERE id = ?", (session['user_id'],))
-    conn.commit()
-    conn.close()
-    session.pop('2fa_verified', None)
-    return jsonify({'success': True})
-
-# ========== ВОССТАНОВЛЕНИЕ ПАРОЛЯ ==========
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
-        user = get_user_by_email(email)
-        if user:
-            token = secrets.token_urlsafe(32)
-            reset_tokens[token] = {'user_id': user['id'], 'expires': datetime.now() + timedelta(hours=1)}
-            reset_url = url_for('reset_password', token=token, _external=True)
-            print(f"Ссылка для сброса пароля: {reset_url}")
-            return render_template('forgot_password.html', message='Инструкция отправлена на email')
-        return render_template('forgot_password.html', error='Email не найден')
+        # Здесь будет отправка email с ссылкой для сброса пароля
+        return render_template('forgot_password.html', message='Инструкция отправлена на email')
     return render_template('forgot_password.html')
 
-@app.route('/reset-password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    if token not in reset_tokens or reset_tokens[token]['expires'] < datetime.now():
-        return "Ссылка недействительна или истекла", 400
-    
-    if request.method == 'POST':
-        new_password = request.form.get('password')
-        hashed_password = hash_password(new_password)
-        user_id = reset_tokens[token]['user_id']
-        
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
-        conn.commit()
-        conn.close()
-        
-        del reset_tokens[token]
-        return redirect(url_for('login'))
-    
-    return render_template('reset_password.html', token=token)
-
-# ========== ПОДТВЕРЖДЕНИЕ EMAIL/ТЕЛЕФОНА ==========
-@app.route('/verify/send', methods=['POST'])
-@login_required
-def send_verification():
-    data = request.get_json()
-    contact_type = data.get('type')
-    contact = data.get('contact')
-    
-    if not contact:
-        return jsonify({'success': False, 'error': 'Контакт не указан'})
-    
-    code = str(secrets.randbelow(900000) + 100000)
-    verification_codes[session['user_id']] = {
-        'code': code,
-        'contact': contact,
-        'type': contact_type,
-        'expires': datetime.now() + timedelta(minutes=10)
-    }
-    
-    print(f"Код подтверждения для {contact}: {code}")
-    return jsonify({'success': True, 'message': 'Код отправлен'})
-
-@app.route('/verify/confirm', methods=['POST'])
-@login_required
-def confirm_verification():
-    data = request.get_json()
-    code = data.get('code')
-    
-    if session['user_id'] in verification_codes:
-        vc = verification_codes[session['user_id']]
-        if vc['code'] == code and vc['expires'] > datetime.now():
-            conn = get_db()
-            c = conn.cursor()
-            if vc['type'] == 'email':
-                c.execute("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
-            else:
-                c.execute("UPDATE users SET phone = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
-            conn.commit()
-            conn.close()
-            del verification_codes[session['user_id']]
-            return jsonify({'success': True})
-    
-    return jsonify({'success': False, 'error': 'Неверный код'})
-
-# ========== ОСНОВНЫЕ МАРШРУТЫ ==========
 @app.route('/feed', methods=['GET', 'POST'])
 @login_required
 def feed():
@@ -1298,10 +1176,6 @@ def profile(user_id):
     user = get_user_by_id(user_id)
     if not user:
         return "User not found", 404
-    
-    # Проверка блокировки
-    if is_blocked(session['user_id'], user_id):
-        return render_template('blocked.html', user=user)
     
     posts = get_user_posts(user_id)
     followers_count = get_followers_count(user_id)
@@ -1456,32 +1330,6 @@ def admin_remove_admin(user_id):
             return jsonify({'success': True})
     return jsonify({'success': False})
 
-@app.route('/admin/reports')
-@admin_required
-def admin_reports():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''SELECT reports.*, 
-                 reporter.username as reporter_name, 
-                 reported.username as reported_name
-                 FROM reports 
-                 JOIN users as reporter ON reports.reporter_id = reporter.id
-                 JOIN users as reported ON reports.reported_id = reported.id
-                 ORDER BY reports.created_at DESC''')
-    reports = c.fetchall()
-    conn.close()
-    return render_template('admin_reports.html', reports=[dict(r) for r in reports])
-
-@app.route('/admin/report/<int:report_id>/resolve', methods=['POST'])
-@admin_required
-def resolve_report(report_id):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", (report_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
-
 @app.route('/buy_premium', methods=['POST'])
 @login_required
 def buy_premium():
@@ -1512,6 +1360,7 @@ def chat(user_id):
     if not other_user:
         return "User not found", 404
     
+    # Проверяем блокировку
     if is_blocked(session['user_id'], user_id) or is_blocked(user_id, session['user_id']):
         return render_template('blocked.html', user=other_user)
     
@@ -1698,9 +1547,8 @@ def api_search_messages(user_id):
 @app.route('/api/block_user/<int:user_id>', methods=['POST'])
 @login_required
 def api_block_user(user_id):
-    if block_user(session['user_id'], user_id):
-        return jsonify({'success': True})
-    return jsonify({'success': False})
+    block_user(session['user_id'], user_id)
+    return jsonify({'success': True})
 
 @app.route('/api/unblock_user/<int:user_id>', methods=['POST'])
 @login_required
@@ -1739,12 +1587,6 @@ def api_get_achievements():
 def api_get_level():
     level_info = get_user_level(session['user_id'])
     return jsonify(level_info)
-
-@app.route('/api/me')
-@login_required
-def api_me():
-    user = get_user_by_id(session['user_id'])
-    return jsonify({'user': user})
 
 @app.route('/health')
 def health():
