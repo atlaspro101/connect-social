@@ -2,31 +2,79 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Чат с {{ other_user.username }} - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script>
+        // Определение типа устройства
+        function getDeviceType() {
+            const ua = navigator.userAgent;
+            const width = window.innerWidth;
+            
+            if (/iPad|Tablet|Android(?!.*Mobile)/i.test(ua) || (width >= 768 && width <= 1024)) {
+                return 'tablet';
+            }
+            if (/Mobile|Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || width < 768) {
+                return 'mobile';
+            }
+            return 'desktop';
+        }
+        
+        const deviceType = getDeviceType();
+        
+        // Загружаем стили в зависимости от устройства
+        if (deviceType === 'mobile') {
+            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
+            document.write('<style>.sidebar, .sidebar-toggle { display: none !important; } .hamburger-btn { display: flex !important; }</style>');
+        } else if (deviceType === 'tablet') {
+            document.write('<link rel="stylesheet" href="/static/css/style.css">');
+            document.write('<link rel="stylesheet" href="/static/css/tablet.css">');
+            document.write('<style>.sidebar { width: 240px; } .main-content { margin-left: 240px; }</style>');
+        } else {
+            document.write('<link rel="stylesheet" href="/static/css/style.css">');
+            document.write('<style>.hamburger-btn, .hamburger-menu, .hamburger-overlay { display: none !important; } .sidebar, .sidebar-toggle { display: block !important; }</style>');
+        }
+    </script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
             background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
             height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+
+        /* Контейнер чата */
+        .chat-app {
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            height: 100vh;
+            width: 100%;
+            position: relative;
         }
+
+        /* Шапка чата */
         .chat-header {
             background: rgba(20, 30, 45, 0.95);
             backdrop-filter: blur(20px);
-            padding: 16px;
+            padding: 12px 20px;
             display: flex;
             align-items: center;
             gap: 12px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 20;
+            flex-shrink: 0;
         }
+
         .back-btn {
             background: none;
             border: none;
@@ -41,7 +89,11 @@
             justify-content: center;
             transition: background 0.3s;
         }
-        .back-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         .chat-avatar {
             width: 48px;
             height: 48px;
@@ -54,31 +106,177 @@
             font-size: 20px;
             font-weight: bold;
             color: white;
+            flex-shrink: 0;
         }
-        .chat-info { flex: 1; }
-        .chat-name { font-weight: 700; font-size: 16px; color: white; display: flex; align-items: center; gap: 6px; }
-        .chat-status { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
-        .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; }
-        .premium-badge { font-size: 14px; margin-left: 4px; }
-        .premium-nick { background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
-        @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-        .messages-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-        .message { display: flex; animation: fadeIn 0.2s ease-out; }
-        .message.sent { justify-content: flex-end; }
-        .message.received { justify-content: flex-start; }
-        .message-bubble { max-width: 70%; padding: 10px 14px; border-radius: 20px; word-wrap: break-word; }
-        .message.sent .message-bubble { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-bottom-right-radius: 4px; }
-        .message.received .message-bubble { background: rgba(30, 40, 55, 0.9); color: white; border-bottom-left-radius: 4px; }
-        .message-time { font-size: 10px; color: rgba(255, 255, 255, 0.5); margin-top: 4px; text-align: right; }
+
+        .chat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .chat-status {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .verified-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
+            color: white;
+            font-size: 11px;
+        }
+
+        .premium-badge {
+            font-size: 14px;
+            margin-left: 4px;
+        }
+
+        .premium-nick {
+            background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: premiumGlow 2s linear infinite;
+            font-weight: 800;
+            display: inline-block;
+        }
+
+        @keyframes premiumGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
+        /* Кнопки действий в шапке */
+        .chat-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-size: 18px;
+        }
+
+        .chat-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Область сообщений */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Сообщение */
+        .message {
+            display: flex;
+            animation: fadeIn 0.2s ease-out;
+            max-width: 100%;
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message.received {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 10px 14px;
+            border-radius: 20px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.sent .message-bubble {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received .message-bubble {
+            background: rgba(30, 40, 55, 0.9);
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .message-read-status {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-left: 8px;
+        }
+
+        /* Поле ввода */
         .message-input-container {
             background: rgba(20, 30, 45, 0.95);
             backdrop-filter: blur(20px);
-            padding: 12px 16px;
+            padding: 12px 20px;
             display: flex;
             gap: 12px;
             align-items: center;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
         }
+
+        .attach-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-size: 20px;
+        }
+
+        .attach-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         .message-input {
             flex: 1;
             background: rgba(0, 0, 0, 0.3);
@@ -86,11 +284,21 @@
             border-radius: 30px;
             padding: 12px 18px;
             color: white;
-            font-size: 14px;
+            font-size: 15px;
             resize: none;
             font-family: inherit;
+            max-height: 100px;
         }
-        .message-input:focus { outline: none; border-color: #667eea; }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .message-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
         .send-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
@@ -102,81 +310,473 @@
             justify-content: center;
             cursor: pointer;
             transition: transform 0.2s;
+            flex-shrink: 0;
         }
-        .send-btn:active { transform: scale(0.95); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .empty-chat { text-align: center; padding: 60px; color: rgba(255, 255, 255, 0.5); }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
-        ::-webkit-scrollbar-thumb { background: #667eea; border-radius: 10px; }
-        @media (max-width: 768px) { .message-bubble { max-width: 85%; } .chat-header { padding: 12px; } .messages-container { padding: 16px; } }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Эмодзи панель */
+        .emoji-panel {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            background: rgba(20, 30, 45, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 12px;
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            z-index: 30;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .emoji-panel.active {
+            display: flex;
+        }
+
+        .emoji {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+
+        .emoji:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Пустой чат */
+        .empty-chat {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Анимации */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Стили скролла */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        /* ========== МОБИЛЬНЫЕ УСТРОЙСТВА (до 767px) ========== */
+        @media (max-width: 767px) {
+            .chat-header {
+                padding: 10px 15px;
+            }
+            
+            .chat-avatar {
+                width: 42px;
+                height: 42px;
+                font-size: 18px;
+            }
+            
+            .chat-name {
+                font-size: 15px;
+            }
+            
+            .chat-status {
+                font-size: 11px;
+            }
+            
+            .messages-container {
+                padding: 15px;
+                gap: 10px;
+            }
+            
+            .message-bubble {
+                max-width: 85%;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            
+            .message-input-container {
+                padding: 10px 15px;
+                gap: 8px;
+            }
+            
+            .message-input {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+            
+            .attach-btn, .send-btn {
+                width: 38px;
+                height: 38px;
+                font-size: 18px;
+            }
+            
+            .back-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 20px;
+            }
+            
+            .chat-actions {
+                gap: 4px;
+            }
+            
+            .chat-action-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+            
+            .emoji-panel {
+                bottom: 70px;
+                left: 10px;
+                right: 10px;
+            }
+            
+            .emoji {
+                font-size: 20px;
+                padding: 6px;
+            }
+        }
+
+        /* ========== ПЛАНШЕТЫ (768px - 1024px) ========== */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .chat-header {
+                padding: 15px 25px;
+            }
+            
+            .chat-avatar {
+                width: 52px;
+                height: 52px;
+                font-size: 22px;
+            }
+            
+            .chat-name {
+                font-size: 18px;
+            }
+            
+            .messages-container {
+                padding: 25px;
+                gap: 15px;
+            }
+            
+            .message-bubble {
+                max-width: 65%;
+                padding: 12px 16px;
+                font-size: 15px;
+            }
+            
+            .message-input-container {
+                padding: 15px 25px;
+            }
+            
+            .message-input {
+                font-size: 15px;
+                padding: 14px 20px;
+            }
+        }
+
+        /* ========== ПК (1025px и выше) ========== */
+        @media (min-width: 1025px) {
+            .chat-app {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            
+            .chat-header {
+                padding: 16px 30px;
+            }
+            
+            .chat-avatar {
+                width: 56px;
+                height: 56px;
+                font-size: 24px;
+            }
+            
+            .chat-name {
+                font-size: 18px;
+            }
+            
+            .messages-container {
+                padding: 30px;
+                gap: 16px;
+            }
+            
+            .message-bubble {
+                max-width: 55%;
+                padding: 12px 18px;
+                font-size: 15px;
+            }
+            
+            .message-input-container {
+                padding: 16px 30px;
+            }
+            
+            .message-input {
+                font-size: 15px;
+                padding: 14px 22px;
+            }
+            
+            .attach-btn, .send-btn {
+                transition: transform 0.2s, background 0.2s;
+            }
+            
+            .attach-btn:hover, .send-btn:hover {
+                transform: scale(1.05);
+            }
+        }
+
+        /* ========== МАЛЕНЬКИЕ ТЕЛЕФОНЫ (до 380px) ========== */
+        @media (max-width: 380px) {
+            .message-bubble {
+                max-width: 90%;
+            }
+            
+            .chat-name {
+                font-size: 14px;
+            }
+            
+            .chat-avatar {
+                width: 38px;
+                height: 38px;
+                font-size: 16px;
+            }
+        }
+
+        /* ========== ЛАНДШАФТНАЯ ОРИЕНТАЦИЯ ========== */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .chat-header {
+                padding: 8px 15px;
+            }
+            
+            .chat-avatar {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            
+            .messages-container {
+                padding: 10px;
+                gap: 8px;
+            }
+            
+            .message-bubble {
+                max-width: 60%;
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+            
+            .message-input-container {
+                padding: 8px 15px;
+            }
+            
+            .message-input {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="chat-header">
-        <button class="back-btn" onclick="window.location.href='/chats'">←</button>
-        <div class="chat-avatar">
-            {% if other_user.avatar %}
-                <img src="{{ other_user.avatar }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
-            {% else %}
-                {{ other_user.username[0].upper() }}
-            {% endif %}
-        </div>
-        <div class="chat-info">
-            <div class="chat-name">
-                <span class="{% if other_user.is_premium %}premium-nick{% endif %}">{{ other_user.full_name or other_user.username }}</span>
-                {% if other_user.is_admin %}<span class="verified-badge">✓</span>{% endif %}
-                {% if other_user.is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
+    <!-- Гамбургер меню (только для мобильных) -->
+    <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()"><span></span></div>
+    <div class="hamburger-menu" id="mobileMenu">
+        <div class="menu-header">
+            <div class="menu-logo">✨ Connect</div>
+            <div class="menu-user">
+                {% if user_avatar %}<img src="{{ user_avatar }}" class="menu-avatar">{% else %}<div class="avatar-placeholder">{{ username[0].upper() }}</div>{% endif %}
+                <div class="menu-user-info"><div class="menu-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div><div class="menu-status">● Онлайн</div></div>
             </div>
-            <div class="chat-status">@{{ other_user.username }}</div>
+        </div>
+        <div class="menu-nav">
+            <a href="/feed" class="menu-item">🏠 Лента</a>
+            <a href="/profile/{{ user_id }}" class="menu-item">👤 Профиль</a>
+            <a href="/chats" class="menu-item active">💬 Сообщения</a>
+            <a href="#" class="menu-item" id="mobileSearchBtn">🔍 Поиск</a>
+            {% if is_admin %}<a href="/admin" class="menu-item">👑 Админ панель</a>{% endif %}
+            <button class="menu-item" id="mobilePremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
+            <a href="/logout" class="menu-item">🚪 Выйти</a>
+        </div>
+    </div>
+    <div class="hamburger-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
+    
+    <!-- ПК сайдбар (только для ПК) -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">✨ Connect</div>
+            <div class="sidebar-user">
+                {% if user_avatar %}<img src="{{ user_avatar }}" class="sidebar-avatar">{% else %}<div class="avatar-placeholder">{{ username[0].upper() }}</div>{% endif %}
+                <div class="sidebar-user-info"><div class="sidebar-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div><div class="sidebar-user-status">● Онлайн</div></div>
+            </div>
+        </div>
+        <div class="sidebar-nav">
+            <a href="/feed" class="sidebar-item">🏠 Лента</a>
+            <a href="/profile/{{ user_id }}" class="sidebar-item">👤 Профиль</a>
+            <a href="/chats" class="sidebar-item active">💬 Сообщения</a>
+            <a href="#" class="sidebar-item" id="pcSearchBtn">🔍 Поиск</a>
+            {% if is_admin %}<a href="/admin" class="sidebar-item">👑 Админ панель</a>{% endif %}
+            <button class="sidebar-item" id="pcPremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
+            <a href="/logout" class="sidebar-item">🚪 Выйти</a>
         </div>
     </div>
     
-    <div class="messages-container" id="messagesContainer">
-        {% if messages %}
-            {% for msg in messages %}
-            <div class="message {% if msg.sender_id == session.user_id %}sent{% else %}received{% endif %}">
-                <div class="message-bubble">
-                    {{ msg.message }}
-                    <div class="message-time">{% if msg.created_at %}{% if msg.created_at.strftime %}{{ msg.created_at.strftime('%H:%M') }}{% else %}{{ msg.created_at }}{% endif %}{% endif %}</div>
+    <div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    
+    <div class="main-content" id="mainContent">
+        <div class="chat-app">
+            <!-- Шапка чата -->
+            <div class="chat-header">
+                <button class="back-btn" onclick="window.location.href='/chats'">←</button>
+                <div class="chat-avatar">
+                    {% if other_user.avatar %}
+                        <img src="{{ other_user.avatar }}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                    {% else %}
+                        {{ other_user.username[0].upper() }}
+                    {% endif %}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name">
+                        <span class="{% if other_user.is_premium %}premium-nick{% endif %}">{{ other_user.full_name or other_user.username }}</span>
+                        {% if other_user.is_admin %}<span class="verified-badge">✓</span>{% endif %}
+                        {% if other_user.is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
+                    </div>
+                    <div class="chat-status" id="userStatus">@{{ other_user.username }} • Онлайн</div>
+                </div>
+                <div class="chat-actions">
+                    <button class="chat-action-btn" onclick="window.location.href='/profile/{{ other_user.id }}'">👤</button>
                 </div>
             </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-chat"><div style="font-size: 48px; margin-bottom: 16px;">💬</div><p>Напишите первое сообщение</p></div>
-        {% endif %}
+
+            <!-- Область сообщений -->
+            <div class="messages-container" id="messagesContainer">
+                {% if messages %}
+                    {% for msg in messages %}
+                    <div class="message {% if msg.sender_id == session.user_id %}sent{% else %}received{% endif %}">
+                        <div class="message-bubble">
+                            {{ msg.message }}
+                            <div class="message-time">
+                                {% if msg.created_at %}
+                                    {% if msg.created_at.strftime %}
+                                        {{ msg.created_at.strftime('%H:%M') }}
+                                    {% else %}
+                                        {{ msg.created_at }}
+                                    {% endif %}
+                                {% endif %}
+                                {% if msg.sender_id == session.user_id and msg.is_read %}
+                                    <span class="message-read-status">✓✓</span>
+                                {% elif msg.sender_id == session.user_id %}
+                                    <span class="message-read-status">✓</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-chat">
+                        <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
+                        <p>Напишите первое сообщение</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Поле ввода -->
+            <div class="message-input-container">
+                <button class="attach-btn" id="emojiBtn" onclick="toggleEmojiPanel()">😊</button>
+                <textarea class="message-input" id="messageInput" placeholder="Напишите сообщение..." rows="1" onkeypress="handleKeyPress(event)"></textarea>
+                <button class="send-btn" onclick="sendMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Эмодзи панель -->
+            <div class="emoji-panel" id="emojiPanel">
+                <span class="emoji" onclick="addEmoji('😊')">😊</span>
+                <span class="emoji" onclick="addEmoji('😂')">😂</span>
+                <span class="emoji" onclick="addEmoji('❤️')">❤️</span>
+                <span class="emoji" onclick="addEmoji('👍')">👍</span>
+                <span class="emoji" onclick="addEmoji('🔥')">🔥</span>
+                <span class="emoji" onclick="addEmoji('🎉')">🎉</span>
+                <span class="emoji" onclick="addEmoji('😢')">😢</span>
+                <span class="emoji" onclick="addEmoji('😎')">😎</span>
+                <span class="emoji" onclick="addEmoji('🤔')">🤔</span>
+                <span class="emoji" onclick="addEmoji('🙏')">🙏</span>
+                <span class="emoji" onclick="addEmoji('✨')">✨</span>
+                <span class="emoji" onclick="addEmoji('💀')">💀</span>
+                <span class="emoji" onclick="addEmoji('🍕')">🍕</span>
+                <span class="emoji" onclick="addEmoji('⚔️')">⚔️</span>
+            </div>
+        </div>
     </div>
-    
-    <div class="message-input-container">
-        <textarea class="message-input" id="messageInput" placeholder="Напишите сообщение..." rows="1" onkeypress="handleKeyPress(event)"></textarea>
-        <button class="send-btn" onclick="sendMessage()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-        </button>
-    </div>
-    
+
     <script>
         const otherUserId = {{ other_user.id }};
         let lastMessageId = {{ messages[-1].id if messages else 0 }};
         let checkInterval = null;
+        
         const messagesContainer = document.getElementById('messagesContainer');
         const messageInput = document.getElementById('messageInput');
+        const emojiPanel = document.getElementById('emojiPanel');
         
-        function formatTime(dateValue) {
-            if (!dateValue) return '';
-            if (dateValue.strftime) return dateValue.strftime('%H:%M');
-            if (typeof dateValue === 'string') {
-                const parts = dateValue.split(' ');
-                if (parts.length > 1) return parts[1].substring(0, 5);
+        // Функции для меню
+        function toggleSidebar() {
+            if (window.innerWidth > 768) {
+                const s=document.getElementById('sidebar'),m=document.getElementById('mainContent'),t=document.getElementById('sidebarToggle');
+                s.classList.toggle('collapsed');m.classList.toggle('expanded');t.classList.toggle('collapsed');
+                localStorage.setItem('sidebarCollapsed',s.classList.contains('collapsed'));
             }
-            return '';
         }
         
+        if(window.innerWidth>768&&localStorage.getItem('sidebarCollapsed')==='true'){
+            document.getElementById('sidebar').classList.add('collapsed');
+            document.getElementById('mainContent').classList.add('expanded');
+            document.getElementById('sidebarToggle').classList.add('collapsed');
+        }
+        
+        function toggleMobileMenu(){
+            if(window.innerWidth<=768){
+                document.getElementById('mobileMenu').classList.toggle('open');
+                document.getElementById('menuOverlay').classList.toggle('active');
+                document.getElementById('hamburgerBtn').classList.toggle('open');
+            }
+        }
+        
+        function closeMobileMenu(){
+            if(window.innerWidth<=768){
+                document.getElementById('mobileMenu').classList.remove('open');
+                document.getElementById('menuOverlay').classList.remove('active');
+                document.getElementById('hamburgerBtn').classList.remove('open');
+            }
+        }
+        
+        // Чат функции
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
+            
             fetch('/send_message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -194,11 +794,22 @@
             }
         }
         
+        function toggleEmojiPanel() {
+            emojiPanel.classList.toggle('active');
+        }
+        
+        function addEmoji(emoji) {
+            messageInput.value += emoji;
+            messageInput.focus();
+            emojiPanel.classList.remove('active');
+        }
+        
         function loadMessages() {
             fetch(`/api/messages/${otherUserId}`)
                 .then(response => response.json())
                 .then(messages => {
                     const shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 100;
+                    
                     if (messages.length > 0 && messages[messages.length - 1].id !== lastMessageId) {
                         messagesContainer.innerHTML = '';
                         messages.forEach(msg => {
@@ -207,26 +818,151 @@
                             messageDiv.innerHTML = `
                                 <div class="message-bubble">
                                     ${escapeHtml(msg.message)}
-                                    <div class="message-time">${msg.created_at || ''}</div>
+                                    <div class="message-time">
+                                        ${msg.created_at || ''}
+                                        ${msg.sender_id == {{ session.user_id }} && msg.is_read ? '<span class="message-read-status">✓✓</span>' : ''}
+                                        ${msg.sender_id == {{ session.user_id }} && !msg.is_read ? '<span class="message-read-status">✓</span>' : ''}
+                                    </div>
                                 </div>
                             `;
                             messagesContainer.appendChild(messageDiv);
                         });
                         lastMessageId = messages[messages.length - 1]?.id || 0;
-                        if (shouldScroll) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        
+                        if (shouldScroll) {
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
                     }
                 });
         }
         
-        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function updateOnlineStatus() {
+            fetch('/api/online_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_ids: [otherUserId] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const statusSpan = document.getElementById('userStatus');
+                if (data[otherUserId]) {
+                    statusSpan.innerHTML = '@{{ other_user.username }} • 🟢 Онлайн';
+                } else {
+                    statusSpan.innerHTML = '@{{ other_user.username }} • ⚫ Оффлайн';
+                }
+            })
+            .catch(() => {});
+        }
         
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Premium функции
+        function openPremiumModal() {
+            document.getElementById('premiumModal').style.display = 'flex';
+        }
+        
+        function closePremiumModal() {
+            document.getElementById('premiumModal').style.display = 'none';
+        }
+        
+        function buyPremium() {
+            fetch('/buy_premium', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('⚔️ Поздравляем! Вы стали Premium пользователем!');
+                        location.reload();
+                    } else {
+                        alert('Ошибка при покупке Premium');
+                    }
+                });
+        }
+        
+        document.getElementById('pcPremiumBtn')?.addEventListener('click', openPremiumModal);
+        document.getElementById('mobilePremiumBtn')?.addEventListener('click', openPremiumModal);
+        
+        // Поиск
+        function openSearchModal() {
+            document.getElementById('searchModal').style.display = 'flex';
+        }
+        
+        function closeSearchModal() {
+            document.getElementById('searchModal').style.display = 'none';
+        }
+        
+        function searchUsersModal() {
+            const q = document.getElementById('searchQuery').value;
+            if (q.length < 2) {
+                document.getElementById('searchResultsModal').innerHTML = '';
+                return;
+            }
+            fetch(`/search?q=${encodeURIComponent(q)}`)
+                .then(r => r.text())
+                .then(html => {
+                    const p = new DOMParser();
+                    const d = p.parseFromString(html, 'text/html');
+                    const r = d.querySelectorAll('.search-result-card');
+                    const c = document.getElementById('searchResultsModal');
+                    c.innerHTML = '';
+                    r.forEach(r => c.appendChild(r.cloneNode(true)));
+                });
+        }
+        
+        document.getElementById('pcSearchBtn')?.addEventListener('click', (e) => { e.preventDefault(); openSearchModal(); });
+        document.getElementById('mobileSearchBtn')?.addEventListener('click', (e) => { e.preventDefault(); closeMobileMenu(); openSearchModal(); });
+        
+        // Инициализация
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         checkInterval = setInterval(loadMessages, 2000);
+        setInterval(updateOnlineStatus, 5000);
+        
         messageInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
-        window.addEventListener('beforeunload', () => { if (checkInterval) clearInterval(checkInterval); });
+        
+        document.addEventListener('click', function(event) {
+            if (!emojiPanel.contains(event.target) && event.target !== document.getElementById('emojiBtn')) {
+                emojiPanel.classList.remove('active');
+            }
+        });
+        
+        window.addEventListener('beforeunload', () => {
+            if (checkInterval) clearInterval(checkInterval);
+        });
+        
+        updateOnlineStatus();
     </script>
+    
+    <!-- Модальные окна -->
+    <div id="premiumModal" class="modal" style="display:none;">
+        <div class="modal-content" style="text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">⚔️</div>
+            <h2>Connect Premium</h2>
+            <p style="margin:16px 0;color:rgba(255,255,255,0.8);">Купите Premium и получите:</p>
+            <ul style="text-align:left;margin:16px 0;padding-left:20px;color:rgba(255,255,255,0.7);">
+                <li>✨ Красивое фиолетово-белое переливание ника</li>
+                <li>⚔️ Иконка меча рядом с ником</li>
+                <li>🔥 Приоритет в поддержке</li>
+                <li>💎 Эксклюзивные эмодзи в комментариях</li>
+            </ul>
+            <div style="font-size:32px;font-weight:bold;margin:20px 0;color:#9b59b6;">199 ₽</div>
+            <button class="modal-save" onclick="buyPremium()" style="width:100%;">💎 Купить Premium</button>
+            <button class="modal-cancel" onclick="closePremiumModal()" style="width:100%;margin-top:10px;">Отмена</button>
+        </div>
+    </div>
+    
+    <div id="searchModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h2>🔍 Поиск пользователей</h2>
+            <input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()">
+            <div id="searchResultsModal"></div>
+            <button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button>
+        </div>
+    </div>
 </body>
 </html>
