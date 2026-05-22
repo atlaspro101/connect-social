@@ -9,201 +9,187 @@ def init_db():
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
-    # Таблица пользователей (расширенная)
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        email TEXT,
-        phone TEXT,
-        full_name TEXT,
-        bio TEXT,
-        birthday TEXT,
-        gender TEXT,
-        avatar TEXT,
-        banner TEXT,
-        is_admin INTEGER DEFAULT 0,
-        is_premium INTEGER DEFAULT 0,
-        is_verified INTEGER DEFAULT 0,
-        is_private INTEGER DEFAULT 0,
-        level INTEGER DEFAULT 1,
-        experience INTEGER DEFAULT 0,
-        twofa_secret TEXT,
-        last_seen TIMESTAMP,
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица подписчиков
-    c.execute('''CREATE TABLE IF NOT EXISTS followers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        follower_id INTEGER,
-        following_id INTEGER,
-        created_at TIMESTAMP,
-        UNIQUE(follower_id, following_id)
-    )''')
-    
-    # Таблица постов
-    c.execute('''CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        content TEXT,
-        media_path TEXT,
-        media_type TEXT,
-        likes INTEGER DEFAULT 0,
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица комментариев
-    c.execute('''CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        user_id INTEGER,
-        content TEXT,
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица лайков
-    c.execute('''CREATE TABLE IF NOT EXISTS post_likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        user_id INTEGER,
-        UNIQUE(post_id, user_id)
-    )''')
-    
-    # Таблица чатов
-    c.execute('''CREATE TABLE IF NOT EXISTS chats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user1_id INTEGER,
-        user2_id INTEGER,
-        is_group INTEGER DEFAULT 0,
-        group_name TEXT,
-        group_avatar TEXT,
-        created_at TIMESTAMP,
-        UNIQUE(user1_id, user2_id)
-    )''')
-    
-    # Таблица участников группы
-    c.execute('''CREATE TABLE IF NOT EXISTS group_members (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chat_id INTEGER,
-        user_id INTEGER,
-        joined_at TIMESTAMP,
-        FOREIGN KEY(chat_id) REFERENCES chats(id),
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )''')
-    
-    # Таблица сообщений (расширенная)
-    c.execute('''CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chat_id INTEGER,
-        sender_id INTEGER,
-        receiver_id INTEGER,
-        message TEXT,
-        media_path TEXT,
-        media_type TEXT,
-        reply_to INTEGER DEFAULT 0,
-        is_edited INTEGER DEFAULT 0,
-        is_deleted INTEGER DEFAULT 0,
-        is_read INTEGER DEFAULT 0,
-        created_at TIMESTAMP,
-        FOREIGN KEY(chat_id) REFERENCES chats(id),
-        FOREIGN KEY(sender_id) REFERENCES users(id),
-        FOREIGN KEY(receiver_id) REFERENCES users(id)
-    )''')
-    
-    # Таблица реакций на сообщения
-    c.execute('''CREATE TABLE IF NOT EXISTS message_reactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        message_id INTEGER,
-        user_id INTEGER,
-        reaction TEXT,
-        created_at TIMESTAMP,
-        UNIQUE(message_id, user_id)
-    )''')
-    
-    # Таблица блокировок
-    c.execute('''CREATE TABLE IF NOT EXISTS blocks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        blocker_id INTEGER,
-        blocked_id INTEGER,
-        created_at TIMESTAMP,
-        UNIQUE(blocker_id, blocked_id)
-    )''')
-    
-    # Таблица жалоб
-    c.execute('''CREATE TABLE IF NOT EXISTS reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        reporter_id INTEGER,
-        reported_id INTEGER,
-        reason TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMP
-    )''')
-    
-    # Таблица достижений
-    c.execute('''CREATE TABLE IF NOT EXISTS achievements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        description TEXT,
-        icon TEXT,
-        required_count INTEGER
-    )''')
-    
-    # Таблица полученных достижений
-    c.execute('''CREATE TABLE IF NOT EXISTS user_achievements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        achievement_id INTEGER,
-        earned_at TIMESTAMP,
-        UNIQUE(user_id, achievement_id)
-    )''')
-    
-    # Таблица стикеров
-    c.execute('''CREATE TABLE IF NOT EXISTS stickers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        image_url TEXT,
-        category TEXT,
-        is_premium INTEGER DEFAULT 0
-    )''')
-    
-    # Таблица избранных сообщений
-    c.execute('''CREATE TABLE IF NOT EXISTS favorite_messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        message_id INTEGER,
-        created_at TIMESTAMP,
-        UNIQUE(user_id, message_id)
-    )''')
-    
-    # Таблица QR-сессий
-    c.execute('''CREATE TABLE IF NOT EXISTS qr_sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id TEXT UNIQUE,
-        user_id INTEGER,
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMP
-    )''')
-    
-    # Вставляем стандартные достижения
-    c.execute("SELECT id FROM achievements LIMIT 1")
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
     if not c.fetchone():
+        c.execute('''CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            full_name TEXT,
+            bio TEXT,
+            birthday TEXT,
+            gender TEXT,
+            avatar TEXT,
+            banner TEXT,
+            is_admin INTEGER DEFAULT 0,
+            is_premium INTEGER DEFAULT 0,
+            is_verified INTEGER DEFAULT 0,
+            is_private INTEGER DEFAULT 0,
+            level INTEGER DEFAULT 1,
+            experience INTEGER DEFAULT 0,
+            twofa_secret TEXT,
+            theme_color TEXT DEFAULT 'purple',
+            theme_background TEXT DEFAULT 'gradient',
+            chat_wallpaper TEXT DEFAULT '',
+            animations_enabled INTEGER DEFAULT 1,
+            last_seen TIMESTAMP,
+            created_at TIMESTAMP
+        )''')
+        
+        c.execute('''CREATE TABLE posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            content TEXT,
+            media_path TEXT,
+            media_type TEXT,
+            likes INTEGER DEFAULT 0,
+            created_at TIMESTAMP
+        )''')
+        
+        c.execute('''CREATE TABLE comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            user_id INTEGER,
+            content TEXT,
+            created_at TIMESTAMP
+        )''')
+        
+        c.execute('''CREATE TABLE post_likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            user_id INTEGER,
+            UNIQUE(post_id, user_id)
+        )''')
+        
+        c.execute('''CREATE TABLE followers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follower_id INTEGER,
+            following_id INTEGER,
+            created_at TIMESTAMP,
+            UNIQUE(follower_id, following_id)
+        )''')
+        
+        c.execute('''CREATE TABLE chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user1_id INTEGER,
+            user2_id INTEGER,
+            is_group INTEGER DEFAULT 0,
+            group_name TEXT,
+            group_avatar TEXT,
+            created_at TIMESTAMP,
+            UNIQUE(user1_id, user2_id)
+        )''')
+        
+        c.execute('''CREATE TABLE group_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER,
+            user_id INTEGER,
+            joined_at TIMESTAMP,
+            FOREIGN KEY(chat_id) REFERENCES chats(id),
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )''')
+        
+        c.execute('''CREATE TABLE messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER,
+            sender_id INTEGER,
+            receiver_id INTEGER,
+            message TEXT,
+            media_path TEXT,
+            media_type TEXT,
+            reply_to INTEGER DEFAULT 0,
+            is_edited INTEGER DEFAULT 0,
+            is_deleted INTEGER DEFAULT 0,
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP,
+            FOREIGN KEY(chat_id) REFERENCES chats(id),
+            FOREIGN KEY(sender_id) REFERENCES users(id),
+            FOREIGN KEY(receiver_id) REFERENCES users(id)
+        )''')
+        
+        c.execute('''CREATE TABLE message_reactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER,
+            user_id INTEGER,
+            reaction TEXT,
+            created_at TIMESTAMP,
+            UNIQUE(message_id, user_id)
+        )''')
+        
+        c.execute('''CREATE TABLE blocks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blocker_id INTEGER,
+            blocked_id INTEGER,
+            created_at TIMESTAMP,
+            UNIQUE(blocker_id, blocked_id)
+        )''')
+        
+        c.execute('''CREATE TABLE reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reporter_id INTEGER,
+            reported_id INTEGER,
+            reason TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP
+        )''')
+        
+        c.execute('''CREATE TABLE achievements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            description TEXT,
+            icon TEXT,
+            required_count INTEGER
+        )''')
+        
+        c.execute('''CREATE TABLE user_achievements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            achievement_id INTEGER,
+            earned_at TIMESTAMP,
+            UNIQUE(user_id, achievement_id)
+        )''')
+        
+        c.execute('''CREATE TABLE stickers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            image_url TEXT,
+            category TEXT,
+            is_premium INTEGER DEFAULT 0
+        )''')
+        
+        c.execute('''CREATE TABLE favorite_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            message_id INTEGER,
+            created_at TIMESTAMP,
+            UNIQUE(user_id, message_id)
+        )''')
+        
+        # Вставляем стандартные достижения
         achievements = [
             ('Первый пост', 'Опубликуйте свой первый пост', '📝', 1),
             ('Первый лайк', 'Получите первый лайк на свой пост', '❤️', 1),
             ('100 подписчиков', 'Соберите 100 подписчиков', '👥', 100),
             ('Мастер чата', 'Отправьте 1000 сообщений', '💬', 1000),
             ('Эксперт', 'Достигните 10 уровня', '⭐', 10),
-            ('Активный', 'Заходите на сайт 30 дней подряд', '🔥', 30),
         ]
         for a in achievements:
             c.execute("INSERT INTO achievements (name, description, icon, required_count) VALUES (?, ?, ?, ?)", a)
+        
+        # Создаем админа
+        admin_pass = hashlib.sha256("fastyk26tyr".encode()).hexdigest()
+        c.execute('''INSERT INTO users (username, password, full_name, is_admin, is_verified, created_at, last_seen) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                  ("taranka", admin_pass, "Admin Taranka", 1, 1, datetime.now(), datetime.now()))
+        
+        conn.commit()
     
-    conn.commit()
     conn.close()
+    print("[DATABASE] База данных инициализирована")
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+init_db()
 
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -226,7 +212,7 @@ def get_user(username, password):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level FROM users WHERE username=? AND password=?", 
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, theme_color, theme_background, chat_wallpaper, animations_enabled FROM users WHERE username=? AND password=?", 
                   (username, password))
         user = c.fetchone()
         conn.close()
@@ -238,7 +224,18 @@ def get_user_by_id(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, experience, email, phone, created_at, last_seen FROM users WHERE id=?", (user_id,))
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, experience, email, phone, twofa_secret, theme_color, theme_background, chat_wallpaper, animations_enabled, created_at, last_seen FROM users WHERE id=?", (user_id,))
+        user = c.fetchone()
+        conn.close()
+        return dict(user) if user else None
+    except:
+        return None
+
+def get_user_by_email(email):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT id, username, email FROM users WHERE email = ?", (email,))
         user = c.fetchone()
         conn.close()
         return dict(user) if user else None
@@ -565,6 +562,35 @@ def verify_user(user_id):
     except:
         return False
 
+def update_user_settings(user_id, theme_color=None, theme_background=None, chat_wallpaper=None, animations_enabled=None):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        if theme_color:
+            c.execute("UPDATE users SET theme_color = ? WHERE id = ?", (theme_color, user_id))
+        if theme_background:
+            c.execute("UPDATE users SET theme_background = ? WHERE id = ?", (theme_background, user_id))
+        if chat_wallpaper:
+            c.execute("UPDATE users SET chat_wallpaper = ? WHERE id = ?", (chat_wallpaper, user_id))
+        if animations_enabled is not None:
+            c.execute("UPDATE users SET animations_enabled = ? WHERE id = ?", (animations_enabled, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def get_user_settings(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT theme_color, theme_background, chat_wallpaper, animations_enabled FROM users WHERE id = ?", (user_id,))
+        settings = c.fetchone()
+        conn.close()
+        return dict(settings) if settings else {'theme_color': 'purple', 'theme_background': 'gradient', 'chat_wallpaper': '', 'animations_enabled': 1}
+    except:
+        return {'theme_color': 'purple', 'theme_background': 'gradient', 'chat_wallpaper': '', 'animations_enabled': 1}
+
 # ========== ФУНКЦИИ ДЛЯ ЧАТОВ ==========
 def get_or_create_chat(user1_id, user2_id):
     conn = sqlite3.connect(DATABASE_PATH)
@@ -582,18 +608,15 @@ def get_or_create_chat(user1_id, user2_id):
     conn.close()
     return chat_id
 
-def send_message(sender_id, receiver_id, message, reply_to=None):
+def send_message(sender_id, receiver_id, message, reply_to=None, media_path=None):
     chat_id = get_or_create_chat(sender_id, receiver_id)
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO messages (chat_id, sender_id, receiver_id, message, reply_to, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-              (chat_id, sender_id, receiver_id, message, reply_to or 0, datetime.now()))
+    c.execute("INSERT INTO messages (chat_id, sender_id, receiver_id, message, media_path, reply_to, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              (chat_id, sender_id, receiver_id, message, media_path, reply_to or 0, datetime.now()))
     msg_id = c.lastrowid
     conn.commit()
     conn.close()
-    
-    # Добавляем опыт за сообщение
-    add_experience(sender_id, 1)
     return msg_id
 
 def get_messages(user_id, other_user_id, limit=50):
@@ -607,17 +630,16 @@ def get_messages(user_id, other_user_id, limit=50):
                  WHERE chat_id = ? AND messages.is_deleted = 0
                  ORDER BY messages.created_at ASC LIMIT ?''', (chat_id, limit))
     messages = c.fetchall()
-    conn.close()
     
     result = []
     for msg in messages:
         msg_dict = dict(msg)
-        # Получаем реакции для сообщения
         c2 = conn.cursor()
         c2.execute("SELECT reaction, COUNT(*) FROM message_reactions WHERE message_id = ? GROUP BY reaction", (msg_dict['id'],))
         reactions = {r[0]: r[1] for r in c2.fetchall()}
         msg_dict['reactions'] = reactions
         result.append(msg_dict)
+    conn.close()
     return result
 
 def get_unread_count(user_id):
@@ -664,7 +686,7 @@ def get_user_chats(user_id):
     conn.close()
     return [dict(chat) for chat in chats]
 
-# ========== ФУНКЦИИ ДЛЯ РЕЙТИНГА И УРОВНЕЙ ==========
+# ========== ФУНКЦИИ ДЛЯ ДОСТИЖЕНИЙ ==========
 def add_experience(user_id, exp):
     try:
         conn = get_db()
@@ -681,7 +703,6 @@ def add_experience(user_id, exp):
                 exp_needed = new_level * 100
             c.execute("UPDATE users SET experience = ?, level = ? WHERE id = ?", (new_exp, new_level, user_id))
             conn.commit()
-            check_achievements(user_id)
     except:
         pass
     finally:
@@ -697,6 +718,86 @@ def get_user_level(user_id):
         return {'level': user[0], 'experience': user[1]} if user else {'level': 1, 'experience': 0}
     except:
         return {'level': 1, 'experience': 0}
+
+def check_achievements(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM posts WHERE user_id = ?", (user_id,))
+        posts_count = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
+        followers_count = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM messages WHERE sender_id = ?", (user_id,))
+        messages_count = c.fetchone()[0]
+        c.execute("SELECT level FROM users WHERE id = ?", (user_id,))
+        level = c.fetchone()[0]
+        
+        achievements_to_check = {
+            'Первый пост': posts_count >= 1,
+            '100 подписчиков': followers_count >= 100,
+            'Мастер чата': messages_count >= 1000,
+            'Эксперт': level >= 10,
+        }
+        
+        new_achievements = []
+        for name, condition in achievements_to_check.items():
+            if condition:
+                c.execute("SELECT id FROM achievements WHERE name = ?", (name,))
+                ach = c.fetchone()
+                if ach:
+                    c.execute("SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?", (user_id, ach[0]))
+                    if not c.fetchone():
+                        c.execute("INSERT INTO user_achievements (user_id, achievement_id, earned_at) VALUES (?, ?, ?)",
+                                  (user_id, ach[0], datetime.now()))
+                        new_achievements.append(name)
+        conn.commit()
+        return new_achievements
+    except:
+        return []
+    finally:
+        conn.close()
+
+def get_user_achievements(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''SELECT achievements.*, user_achievements.earned_at
+                     FROM achievements
+                     JOIN user_achievements ON achievements.id = user_achievements.achievement_id
+                     WHERE user_achievements.user_id = ?''', (user_id,))
+        achievements = c.fetchall()
+        conn.close()
+        return [dict(ach) for ach in achievements]
+    except:
+        return []
+
+# ========== ФУНКЦИИ ДЛЯ РЕАКЦИЙ ==========
+def add_reaction(message_id, user_id, reaction):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("INSERT INTO message_reactions (message_id, user_id, reaction, created_at) VALUES (?, ?, ?, ?)",
+                  (message_id, user_id, reaction, datetime.now()))
+        conn.commit()
+        return True
+    except:
+        c.execute("UPDATE message_reactions SET reaction = ? WHERE message_id = ? AND user_id = ?",
+                  (reaction, message_id, user_id))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def get_reactions(message_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT reaction, COUNT(*) FROM message_reactions WHERE message_id = ? GROUP BY reaction", (message_id,))
+        reactions = c.fetchall()
+        conn.close()
+        return {r[0]: r[1] for r in reactions}
+    except:
+        return {}
 
 # ========== ФУНКЦИИ ДЛЯ БЛОКИРОВКИ ==========
 def block_user(blocker_id, blocked_id):
@@ -749,96 +850,6 @@ def report_user(reporter_id, reported_id, reason):
     finally:
         conn.close()
 
-# ========== ФУНКЦИИ ДЛЯ ДОСТИЖЕНИЙ ==========
-def check_achievements(user_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        
-        # Проверяем количество постов
-        c.execute("SELECT COUNT(*) FROM posts WHERE user_id = ?", (user_id,))
-        posts_count = c.fetchone()[0]
-        
-        # Проверяем количество подписчиков
-        c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
-        followers_count = c.fetchone()[0]
-        
-        # Проверяем количество сообщений
-        c.execute("SELECT COUNT(*) FROM messages WHERE sender_id = ?", (user_id,))
-        messages_count = c.fetchone()[0]
-        
-        # Проверяем уровень
-        c.execute("SELECT level FROM users WHERE id = ?", (user_id,))
-        level = c.fetchone()[0]
-        
-        achievements_to_check = {
-            'Первый пост': posts_count >= 1,
-            '100 подписчиков': followers_count >= 100,
-            'Мастер чата': messages_count >= 1000,
-            'Эксперт': level >= 10,
-        }
-        
-        new_achievements = []
-        for name, condition in achievements_to_check.items():
-            if condition:
-                c.execute("SELECT id FROM achievements WHERE name = ?", (name,))
-                ach = c.fetchone()
-                if ach:
-                    c.execute("SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?", (user_id, ach[0]))
-                    if not c.fetchone():
-                        c.execute("INSERT INTO user_achievements (user_id, achievement_id, earned_at) VALUES (?, ?, ?)",
-                                  (user_id, ach[0], datetime.now()))
-                        new_achievements.append(name)
-        
-        conn.commit()
-        return new_achievements
-    except:
-        return []
-    finally:
-        conn.close()
-
-def get_user_achievements(user_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''SELECT achievements.*, user_achievements.earned_at
-                     FROM achievements
-                     JOIN user_achievements ON achievements.id = user_achievements.achievement_id
-                     WHERE user_achievements.user_id = ?''', (user_id,))
-        achievements = c.fetchall()
-        conn.close()
-        return [dict(ach) for ach in achievements]
-    except:
-        return []
-
-# ========== ФУНКЦИИ ДЛЯ РЕАКЦИЙ ==========
-def add_reaction(message_id, user_id, reaction):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("INSERT INTO message_reactions (message_id, user_id, reaction, created_at) VALUES (?, ?, ?, ?)",
-                  (message_id, user_id, reaction, datetime.now()))
-        conn.commit()
-        return True
-    except:
-        c.execute("UPDATE message_reactions SET reaction = ? WHERE message_id = ? AND user_id = ?",
-                  (reaction, message_id, user_id))
-        conn.commit()
-        return True
-    finally:
-        conn.close()
-
-def get_reactions(message_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT reaction, COUNT(*) FROM message_reactions WHERE message_id = ? GROUP BY reaction", (message_id,))
-        reactions = c.fetchall()
-        conn.close()
-        return {r[0]: r[1] for r in reactions}
-    except:
-        return {}
-
 # ========== ФУНКЦИИ ДЛЯ ИЗБРАННЫХ СООБЩЕНИЙ ==========
 def favorite_message(user_id, message_id):
     try:
@@ -876,40 +887,3 @@ def search_messages(chat_id, query, user_id):
         return [dict(msg) for msg in messages]
     except:
         return []
-
-# ========== ФУНКЦИИ ДЛЯ QR ВХОДА ==========
-def create_qr_session(session_id, user_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("INSERT INTO qr_sessions (session_id, user_id, created_at) VALUES (?, ?, ?)",
-                  (session_id, user_id, datetime.now()))
-        conn.commit()
-        return True
-    except:
-        return False
-    finally:
-        conn.close()
-
-def get_qr_session(session_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT * FROM qr_sessions WHERE session_id = ?", (session_id,))
-        session = c.fetchone()
-        conn.close()
-        return dict(session) if session else None
-    except:
-        return None
-
-def confirm_qr_session(session_id, user_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("UPDATE qr_sessions SET status = 'confirmed', user_id = ? WHERE session_id = ?", (user_id, session_id))
-        conn.commit()
-        return True
-    except:
-        return False
-    finally:
-        conn.close()

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script>
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                   || window.innerWidth <= 768;
+        }
+        if (isMobile()) {
+            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
+        } else {
+            document.write('<link rel="stylesheet" href="/static/css/style.css">');
+        }
+    </script>
+    <style>
+        .settings-container { max-width: 800px; margin: 80px auto 40px; padding: 20px; }
+        .settings-section { background: rgba(25,35,50,0.6); backdrop-filter: blur(12px); border-radius: 20px; padding: 24px; margin-bottom: 20px; }
+        .settings-section h2 { margin-bottom: 20px; font-size: 20px; }
+        .theme-colors { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
+        .color-option { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: all 0.3s; }
+        .color-option.selected { border-color: white; transform: scale(1.1); }
+        .theme-bg-option { padding: 10px 20px; background: rgba(255,255,255,0.1); border-radius: 30px; cursor: pointer; margin: 5px; }
+        .theme-bg-option.selected { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .wallpaper-preview { max-width: 100%; height: 100px; object-fit: cover; border-radius: 12px; margin-top: 10px; cursor: pointer; }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.3s; border-radius: 24px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }
+        input:checked + .toggle-slider { background: linear-gradient(135deg, #667eea, #764ba2); }
+        input:checked + .toggle-slider:before { transform: translateX(26px); }
+        .save-btn { background: linear-gradient(135deg, #667eea, #764ba2); border: none; padding: 12px 30px; border-radius: 30px; color: white; cursor: pointer; width: 100%; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <h1 style="margin-bottom: 24px;">⚙️ Настройки</h1>
+        
+        <div class="settings-section">
+            <h2>🎨 Цветовая схема</h2>
+            <div class="theme-colors">
+                <div class="color-option" style="background: linear-gradient(135deg, #667eea, #764ba2)" data-color="purple" onclick="selectColor('purple')"></div>
+                <div class="color-option" style="background: linear-gradient(135deg, #ff4757, #ff6b81)" data-color="red" onclick="selectColor('red')"></div>
+                <div class="color-option" style="background: linear-gradient(135deg, #4cd964, #34c759)" data-color="green" onclick="selectColor('green')"></div>
+                <div class="color-option" style="background: linear-gradient(135deg, #ffa502, #ff6348)" data-color="orange" onclick="selectColor('orange')"></div>
+                <div class="color-option" style="background: linear-gradient(135deg, #1e90ff, #00bfff)" data-color="blue" onclick="selectColor('blue')"></div>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h2>🖼️ Фон</h2>
+            <div>
+                <div class="theme-bg-option" data-bg="gradient" onclick="selectBackground('gradient')">🌊 Градиент</div>
+                <div class="theme-bg-option" data-bg="dark" onclick="selectBackground('dark')">🌑 Темный</div>
+                <div class="theme-bg-option" data-bg="light" onclick="selectBackground('light')">☀️ Светлый</div>
+                <div class="theme-bg-option" data-bg="stars" onclick="selectBackground('stars')">⭐ Звездное небо</div>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h2>💬 Обои для чата</h2>
+            <input type="file" id="wallpaperInput" accept="image/*" style="margin-bottom: 10px;">
+            <div id="wallpaperPreview" class="wallpaper-preview" style="display: none;"></div>
+            <button onclick="uploadWallpaper()" class="save-btn" style="margin-top: 10px;">📤 Загрузить обои</button>
+        </div>
+        
+        <div class="settings-section">
+            <h2>✨ Анимации переходов</h2>
+            <label class="toggle-switch">
+                <input type="checkbox" id="animationsToggle" checked>
+                <span class="toggle-slider"></span>
+            </label>
+            <span style="margin-left: 15px;">Включить плавные анимации</span>
+        </div>
+        
+        <button onclick="saveSettings()" class="save-btn">💾 Сохранить настройки</button>
+    </div>
+    
+    <script>
+        let currentColor = 'purple';
+        let currentBackground = 'gradient';
+        
+        function selectColor(color) {
+            currentColor = color;
+            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            event.target.classList.add('selected');
+        }
+        
+        function selectBackground(bg) {
+            currentBackground = bg;
+            document.querySelectorAll('.theme-bg-option').forEach(opt => opt.classList.remove('selected'));
+            event.target.classList.add('selected');
+        }
+        
+        function uploadWallpaper() {
+            const file = document.getElementById('wallpaperInput').files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('wallpaper', file);
+            
+            fetch('/upload_wallpaper', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('wallpaperPreview').style.display = 'block';
+                        document.getElementById('wallpaperPreview').style.backgroundImage = `url(${data.wallpaper})`;
+                        document.getElementById('wallpaperPreview').style.backgroundSize = 'cover';
+                        alert('Обои загружены!');
+                    }
+                });
+        }
+        
+        function saveSettings() {
+            const animations = document.getElementById('animationsToggle').checked;
+            
+            fetch('/api/save_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    theme_color: currentColor,
+                    theme_background: currentBackground,
+                    animations_enabled: animations ? 1 : 0
+                })
+            }).then(() => {
+                alert('Настройки сохранены! Страница будет обновлена.');
+                location.reload();
+            });
+        }
+        
+        // Загружаем текущие настройки
+        fetch('/api/get_settings')
+            .then(r => r.json())
+            .then(data => {
+                currentColor = data.theme_color;
+                currentBackground = data.theme_background;
+                document.getElementById('animationsToggle').checked = data.animations_enabled === 1;
+                
+                // Подсвечиваем выбранные опции
+                document.querySelectorAll('.color-option').forEach(opt => {
+                    if (opt.dataset.color === data.theme_color) opt.classList.add('selected');
+                });
+                document.querySelectorAll('.theme-bg-option').forEach(opt => {
+                    if (opt.dataset.bg === data.theme_background) opt.classList.add('selected');
+                });
+                if (data.chat_wallpaper) {
+                    document.getElementById('wallpaperPreview').style.display = 'block';
+                    document.getElementById('wallpaperPreview').style.backgroundImage = `url(${data.chat_wallpaper})`;
+                    document.getElementById('wallpaperPreview').style.backgroundSize = 'cover';
+                }
+            });
+    </script>
+</body>
+</html>

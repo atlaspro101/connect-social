@@ -10,12 +10,17 @@ import time
 import requests
 import json
 import secrets
+import shutil
 
 # Для QR и WebSocket
 from flask_sock import Sock
 
 # Для 2FA
 import pyotp
+
+# Для бэкапов и графиков
+from apscheduler.schedulers.background import BackgroundScheduler
+from collections import defaultdict
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, 'users.db')
@@ -37,6 +42,8 @@ os.makedirs(os.path.join(UPLOAD_FOLDER, 'voice'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'avatars'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'banners'), exist_ok=True)
 os.makedirs(os.path.join(UPLOAD_FOLDER, 'stickers'), exist_ok=True)
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'wallpapers'), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, 'backups'), exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'ogg', 'webm'}
 
@@ -54,26 +61,21 @@ reset_tokens = {}
 friend_qr_sessions = {}
 push_subscriptions = {}
 
-# ========== ДЕКОРАТОРЫ (ДОЛЖНЫ БЫТЬ ОПРЕДЕЛЕНЫ РАНЬШЕ) ==========
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        update_last_seen(session['user_id'])
-        return f(*args, **kwargs)
-    return decorated_function
+# ========== РЕЗЕРВНОЕ КОПИРОВАНИЕ БД ==========
+def backup_database():
+    backup_dir = os.path.join(BASE_DIR, 'backups')
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = os.path.join(backup_dir, f'users_backup_{timestamp}.db')
+    shutil.copy2(DATABASE_PATH, backup_path)
+    print(f"✅ Бэкап создан: {backup_path}")
+    
+    backups = sorted([f for f in os.listdir(backup_dir) if f.startswith('users_backup_')])
+    while len(backups) > 10:
+        os.remove(os.path.join(backup_dir, backups.pop(0)))
 
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        user = get_user_by_id(session['user_id'])
-        if not user or not user.get('is_admin'):
-            return "Access denied", 403
-        return f(*args, **kwargs)
-    return decorated_function
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=backup_database, trigger="cron", hour=3, minute=0)
+scheduler.start()
 
 # ========== KEEP-ALIVE ФУНКЦИЯ ==========
 def keep_alive():
@@ -127,189 +129,6 @@ def format_date_filter(date_value):
             return "январь 2026 г."
     return "январь 2026 г."
 
-# ========== ИНИЦИАЛИЗАЦИЯ БД ==========
-def init_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    c = conn.cursor()
-    
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-    if not c.fetchone():
-        c.execute('''CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            email TEXT,
-            phone TEXT,
-            full_name TEXT,
-            bio TEXT,
-            birthday TEXT,
-            gender TEXT,
-            avatar TEXT,
-            banner TEXT,
-            is_admin INTEGER DEFAULT 0,
-            is_premium INTEGER DEFAULT 0,
-            is_verified INTEGER DEFAULT 0,
-            is_private INTEGER DEFAULT 0,
-            level INTEGER DEFAULT 1,
-            experience INTEGER DEFAULT 0,
-            twofa_secret TEXT,
-            last_seen TIMESTAMP,
-            created_at TIMESTAMP
-        )''')
-        
-        c.execute('''CREATE TABLE posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            content TEXT,
-            media_path TEXT,
-            media_type TEXT,
-            likes INTEGER DEFAULT 0,
-            created_at TIMESTAMP
-        )''')
-        
-        c.execute('''CREATE TABLE comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id INTEGER,
-            user_id INTEGER,
-            content TEXT,
-            created_at TIMESTAMP
-        )''')
-        
-        c.execute('''CREATE TABLE post_likes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id INTEGER,
-            user_id INTEGER,
-            UNIQUE(post_id, user_id)
-        )''')
-        
-        c.execute('''CREATE TABLE followers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            follower_id INTEGER,
-            following_id INTEGER,
-            created_at TIMESTAMP,
-            UNIQUE(follower_id, following_id)
-        )''')
-        
-        c.execute('''CREATE TABLE chats (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user1_id INTEGER,
-            user2_id INTEGER,
-            is_group INTEGER DEFAULT 0,
-            group_name TEXT,
-            group_avatar TEXT,
-            created_at TIMESTAMP,
-            UNIQUE(user1_id, user2_id)
-        )''')
-        
-        c.execute('''CREATE TABLE group_members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id INTEGER,
-            user_id INTEGER,
-            joined_at TIMESTAMP,
-            FOREIGN KEY(chat_id) REFERENCES chats(id),
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )''')
-        
-        c.execute('''CREATE TABLE messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id INTEGER,
-            sender_id INTEGER,
-            receiver_id INTEGER,
-            message TEXT,
-            media_path TEXT,
-            media_type TEXT,
-            reply_to INTEGER DEFAULT 0,
-            is_edited INTEGER DEFAULT 0,
-            is_deleted INTEGER DEFAULT 0,
-            is_read INTEGER DEFAULT 0,
-            created_at TIMESTAMP,
-            FOREIGN KEY(chat_id) REFERENCES chats(id),
-            FOREIGN KEY(sender_id) REFERENCES users(id),
-            FOREIGN KEY(receiver_id) REFERENCES users(id)
-        )''')
-        
-        c.execute('''CREATE TABLE message_reactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message_id INTEGER,
-            user_id INTEGER,
-            reaction TEXT,
-            created_at TIMESTAMP,
-            UNIQUE(message_id, user_id)
-        )''')
-        
-        c.execute('''CREATE TABLE blocks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            blocker_id INTEGER,
-            blocked_id INTEGER,
-            created_at TIMESTAMP,
-            UNIQUE(blocker_id, blocked_id)
-        )''')
-        
-        c.execute('''CREATE TABLE reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            reporter_id INTEGER,
-            reported_id INTEGER,
-            reason TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP
-        )''')
-        
-        c.execute('''CREATE TABLE achievements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            description TEXT,
-            icon TEXT,
-            required_count INTEGER
-        )''')
-        
-        c.execute('''CREATE TABLE user_achievements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            achievement_id INTEGER,
-            earned_at TIMESTAMP,
-            UNIQUE(user_id, achievement_id)
-        )''')
-        
-        c.execute('''CREATE TABLE stickers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            image_url TEXT,
-            category TEXT,
-            is_premium INTEGER DEFAULT 0
-        )''')
-        
-        c.execute('''CREATE TABLE favorite_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            message_id INTEGER,
-            created_at TIMESTAMP,
-            UNIQUE(user_id, message_id)
-        )''')
-        
-        # Вставляем стандартные достижения
-        achievements = [
-            ('Первый пост', 'Опубликуйте свой первый пост', '📝', 1),
-            ('Первый лайк', 'Получите первый лайк на свой пост', '❤️', 1),
-            ('100 подписчиков', 'Соберите 100 подписчиков', '👥', 100),
-            ('Мастер чата', 'Отправьте 1000 сообщений', '💬', 1000),
-            ('Эксперт', 'Достигните 10 уровня', '⭐', 10),
-        ]
-        for a in achievements:
-            c.execute("INSERT INTO achievements (name, description, icon, required_count) VALUES (?, ?, ?, ?)", a)
-        
-        # Создаем админа
-        admin_pass = hash_password("fastyk26tyr")
-        c.execute('''INSERT INTO users (username, password, full_name, is_admin, is_verified, created_at, last_seen) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                  ("taranka", admin_pass, "Admin Taranka", 1, 1, datetime.now(), datetime.now()))
-        
-        conn.commit()
-    
-    conn.close()
-    print("[DATABASE] База данных инициализирована")
-
-init_db()
-
 # ========== ФУНКЦИИ БД ==========
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -332,7 +151,7 @@ def get_user(username, password):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level FROM users WHERE username=? AND password=?", 
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, theme_color, theme_background, chat_wallpaper, animations_enabled FROM users WHERE username=? AND password=?", 
                   (username, password))
         user = c.fetchone()
         conn.close()
@@ -344,18 +163,7 @@ def get_user_by_id(user_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, experience, email, phone, twofa_secret, created_at, last_seen FROM users WHERE id=?", (user_id,))
-        user = c.fetchone()
-        conn.close()
-        return dict(user) if user else None
-    except:
-        return None
-
-def get_user_by_email(email):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT id, username, email FROM users WHERE email = ?", (email,))
+        c.execute("SELECT id, username, full_name, bio, avatar, banner, birthday, gender, is_admin, is_premium, is_verified, is_private, level, experience, email, phone, twofa_secret, theme_color, theme_background, chat_wallpaper, animations_enabled, created_at, last_seen FROM users WHERE id=?", (user_id,))
         user = c.fetchone()
         conn.close()
         return dict(user) if user else None
@@ -396,6 +204,35 @@ def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender
         conn.close()
     except:
         pass
+
+def update_user_settings(user_id, theme_color=None, theme_background=None, chat_wallpaper=None, animations_enabled=None):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        if theme_color:
+            c.execute("UPDATE users SET theme_color = ? WHERE id = ?", (theme_color, user_id))
+        if theme_background:
+            c.execute("UPDATE users SET theme_background = ? WHERE id = ?", (theme_background, user_id))
+        if chat_wallpaper:
+            c.execute("UPDATE users SET chat_wallpaper = ? WHERE id = ?", (chat_wallpaper, user_id))
+        if animations_enabled is not None:
+            c.execute("UPDATE users SET animations_enabled = ? WHERE id = ?", (animations_enabled, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def get_user_settings(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT theme_color, theme_background, chat_wallpaper, animations_enabled FROM users WHERE id = ?", (user_id,))
+        settings = c.fetchone()
+        conn.close()
+        return dict(settings) if settings else {'theme_color': 'purple', 'theme_background': 'gradient', 'chat_wallpaper': '', 'animations_enabled': 1}
+    except:
+        return {'theme_color': 'purple', 'theme_background': 'gradient', 'chat_wallpaper': '', 'animations_enabled': 1}
 
 def add_post(user_id, content, media_path=None, media_type=None):
     try:
@@ -682,6 +519,91 @@ def verify_user(user_id):
     except:
         return False
 
+def add_experience(user_id, exp):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT experience, level FROM users WHERE id = ?", (user_id,))
+        user = c.fetchone()
+        if user:
+            new_exp = user[0] + exp
+            new_level = user[1]
+            exp_needed = new_level * 100
+            while new_exp >= exp_needed:
+                new_exp -= exp_needed
+                new_level += 1
+                exp_needed = new_level * 100
+            c.execute("UPDATE users SET experience = ?, level = ? WHERE id = ?", (new_exp, new_level, user_id))
+            conn.commit()
+            check_achievements(user_id)
+    except:
+        pass
+    finally:
+        conn.close()
+
+def get_user_level(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT level, experience FROM users WHERE id = ?", (user_id,))
+        user = c.fetchone()
+        conn.close()
+        return {'level': user[0], 'experience': user[1]} if user else {'level': 1, 'experience': 0}
+    except:
+        return {'level': 1, 'experience': 0}
+
+def check_achievements(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM posts WHERE user_id = ?", (user_id,))
+        posts_count = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
+        followers_count = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM messages WHERE sender_id = ?", (user_id,))
+        messages_count = c.fetchone()[0]
+        c.execute("SELECT level FROM users WHERE id = ?", (user_id,))
+        level = c.fetchone()[0]
+        
+        achievements_to_check = {
+            'Первый пост': posts_count >= 1,
+            '100 подписчиков': followers_count >= 100,
+            'Мастер чата': messages_count >= 1000,
+            'Эксперт': level >= 10,
+        }
+        
+        new_achievements = []
+        for name, condition in achievements_to_check.items():
+            if condition:
+                c.execute("SELECT id FROM achievements WHERE name = ?", (name,))
+                ach = c.fetchone()
+                if ach:
+                    c.execute("SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?", (user_id, ach[0]))
+                    if not c.fetchone():
+                        c.execute("INSERT INTO user_achievements (user_id, achievement_id, earned_at) VALUES (?, ?, ?)",
+                                  (user_id, ach[0], datetime.now()))
+                        new_achievements.append(name)
+        conn.commit()
+        return new_achievements
+    except:
+        return []
+    finally:
+        conn.close()
+
+def get_user_achievements(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''SELECT achievements.*, user_achievements.earned_at
+                     FROM achievements
+                     JOIN user_achievements ON achievements.id = user_achievements.achievement_id
+                     WHERE user_achievements.user_id = ?''', (user_id,))
+        achievements = c.fetchall()
+        conn.close()
+        return [dict(ach) for ach in achievements]
+    except:
+        return []
+
 # ========== ФУНКЦИИ ДЛЯ ЧАТОВ ==========
 def get_or_create_chat(user1_id, user2_id):
     conn = sqlite3.connect(DATABASE_PATH)
@@ -708,10 +630,6 @@ def send_message(sender_id, receiver_id, message, reply_to=None, media_path=None
     msg_id = c.lastrowid
     conn.commit()
     conn.close()
-    
-    # Добавляем опыт за сообщение
-    add_experience(sender_id, 1)
-    
     return msg_id
 
 def get_messages(user_id, other_user_id, limit=50):
@@ -729,7 +647,6 @@ def get_messages(user_id, other_user_id, limit=50):
     result = []
     for msg in messages:
         msg_dict = dict(msg)
-        # Получаем реакции для сообщения
         c2 = conn.cursor()
         c2.execute("SELECT reaction, COUNT(*) FROM message_reactions WHERE message_id = ? GROUP BY reaction", (msg_dict['id'],))
         reactions = {r[0]: r[1] for r in c2.fetchall()}
@@ -782,39 +699,33 @@ def get_user_chats(user_id):
     conn.close()
     return [dict(chat) for chat in chats]
 
-# ========== ФУНКЦИИ ДЛЯ РЕЙТИНГА И УРОВНЕЙ ==========
-def add_experience(user_id, exp):
+# ========== ФУНКЦИИ ДЛЯ РЕАКЦИЙ ==========
+def add_reaction(message_id, user_id, reaction):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT experience, level FROM users WHERE id = ?", (user_id,))
-        user = c.fetchone()
-        if user:
-            new_exp = user[0] + exp
-            new_level = user[1]
-            exp_needed = new_level * 100
-            while new_exp >= exp_needed:
-                new_exp -= exp_needed
-                new_level += 1
-                exp_needed = new_level * 100
-            c.execute("UPDATE users SET experience = ?, level = ? WHERE id = ?", (new_exp, new_level, user_id))
-            conn.commit()
-            check_achievements(user_id)
+        c.execute("INSERT INTO message_reactions (message_id, user_id, reaction, created_at) VALUES (?, ?, ?, ?)",
+                  (message_id, user_id, reaction, datetime.now()))
+        conn.commit()
+        return True
     except:
-        pass
+        c.execute("UPDATE message_reactions SET reaction = ? WHERE message_id = ? AND user_id = ?",
+                  (reaction, message_id, user_id))
+        conn.commit()
+        return True
     finally:
         conn.close()
 
-def get_user_level(user_id):
+def get_reactions(message_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT level, experience FROM users WHERE id = ?", (user_id,))
-        user = c.fetchone()
+        c.execute("SELECT reaction, COUNT(*) FROM message_reactions WHERE message_id = ? GROUP BY reaction", (message_id,))
+        reactions = c.fetchall()
         conn.close()
-        return {'level': user[0], 'experience': user[1]} if user else {'level': 1, 'experience': 0}
+        return {r[0]: r[1] for r in reactions}
     except:
-        return {'level': 1, 'experience': 0}
+        return {}
 
 # ========== ФУНКЦИИ ДЛЯ БЛОКИРОВКИ ==========
 def block_user(blocker_id, blocked_id):
@@ -867,357 +778,207 @@ def report_user(reporter_id, reported_id, reason):
     finally:
         conn.close()
 
-# ========== ФУНКЦИИ ДЛЯ ДОСТИЖЕНИЙ ==========
-def check_achievements(user_id):
+def get_reports():
     try:
         conn = get_db()
         c = conn.cursor()
-        
-        c.execute("SELECT COUNT(*) FROM posts WHERE user_id = ?", (user_id,))
-        posts_count = c.fetchone()[0]
-        
-        c.execute("SELECT COUNT(*) FROM followers WHERE following_id = ?", (user_id,))
-        followers_count = c.fetchone()[0]
-        
-        c.execute("SELECT COUNT(*) FROM messages WHERE sender_id = ?", (user_id,))
-        messages_count = c.fetchone()[0]
-        
-        c.execute("SELECT level FROM users WHERE id = ?", (user_id,))
-        level = c.fetchone()[0]
-        
-        achievements_to_check = {
-            'Первый пост': posts_count >= 1,
-            '100 подписчиков': followers_count >= 100,
-            'Мастер чата': messages_count >= 1000,
-            'Эксперт': level >= 10,
-        }
-        
-        new_achievements = []
-        for name, condition in achievements_to_check.items():
-            if condition:
-                c.execute("SELECT id FROM achievements WHERE name = ?", (name,))
-                ach = c.fetchone()
-                if ach:
-                    c.execute("SELECT id FROM user_achievements WHERE user_id = ? AND achievement_id = ?", (user_id, ach[0]))
-                    if not c.fetchone():
-                        c.execute("INSERT INTO user_achievements (user_id, achievement_id, earned_at) VALUES (?, ?, ?)",
-                                  (user_id, ach[0], datetime.now()))
-                        new_achievements.append(name)
-        
-        conn.commit()
-        return new_achievements
-    except:
-        return []
-    finally:
+        c.execute('''SELECT reports.*, 
+                     reporter.username as reporter_name, 
+                     reported.username as reported_name
+                     FROM reports 
+                     JOIN users as reporter ON reports.reporter_id = reporter.id
+                     JOIN users as reported ON reports.reported_id = reported.id
+                     ORDER BY reports.created_at DESC''')
+        reports = c.fetchall()
         conn.close()
-
-def get_user_achievements(user_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''SELECT achievements.*, user_achievements.earned_at
-                     FROM achievements
-                     JOIN user_achievements ON achievements.id = user_achievements.achievement_id
-                     WHERE user_achievements.user_id = ?''', (user_id,))
-        achievements = c.fetchall()
-        conn.close()
-        return [dict(ach) for ach in achievements]
+        return [dict(r) for r in reports]
     except:
         return []
 
-# ========== ФУНКЦИИ ДЛЯ РЕАКЦИЙ ==========
-def add_reaction(message_id, user_id, reaction):
+def resolve_report(report_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("INSERT INTO message_reactions (message_id, user_id, reaction, created_at) VALUES (?, ?, ?, ?)",
-                  (message_id, user_id, reaction, datetime.now()))
+        c.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", (report_id,))
         conn.commit()
-        return True
-    except:
-        c.execute("UPDATE message_reactions SET reaction = ? WHERE message_id = ? AND user_id = ?",
-                  (reaction, message_id, user_id))
-        conn.commit()
-        return True
-    finally:
         conn.close()
-
-def get_reactions(message_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("SELECT reaction, COUNT(*) FROM message_reactions WHERE message_id = ? GROUP BY reaction", (message_id,))
-        reactions = c.fetchall()
-        conn.close()
-        return {r[0]: r[1] for r in reactions}
-    except:
-        return {}
-
-# ========== ФУНКЦИИ ДЛЯ ИЗБРАННЫХ СООБЩЕНИЙ ==========
-def favorite_message(user_id, message_id):
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("INSERT INTO favorite_messages (user_id, message_id, created_at) VALUES (?, ?, ?)",
-                  (user_id, message_id, datetime.now()))
-        conn.commit()
         return True
     except:
         return False
-    finally:
-        conn.close()
 
-def unfavorite_message(user_id, message_id):
+# ========== ФУНКЦИИ ДЛЯ СТИКЕРОВ ==========
+def add_sticker(name, image_url, category, is_premium=0):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("DELETE FROM favorite_messages WHERE user_id = ? AND message_id = ?", (user_id, message_id))
+        c.execute("INSERT INTO stickers (name, image_url, category, is_premium) VALUES (?, ?, ?, ?)",
+                  (name, image_url, category, is_premium))
         conn.commit()
-    except:
-        pass
-    finally:
         conn.close()
+        return True
+    except:
+        return False
 
-# ========== ФУНКЦИИ ДЛЯ ПОИСКА ПО ЧАТУ ==========
-def search_messages(chat_id, query, user_id):
+def delete_sticker(sticker_id):
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT * FROM messages WHERE chat_id = ? AND message LIKE ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 50",
-                  (chat_id, f'%{query}%'))
-        messages = c.fetchall()
+        c.execute("DELETE FROM stickers WHERE id = ?", (sticker_id,))
+        conn.commit()
         conn.close()
-        return [dict(msg) for msg in messages]
+        return True
+    except:
+        return False
+
+def get_all_stickers():
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT * FROM stickers ORDER BY category")
+        stickers = c.fetchall()
+        conn.close()
+        return [dict(s) for s in stickers]
     except:
         return []
 
-# ========== QR-КОД ДЛЯ ДОБАВЛЕНИЯ ДРУЗЕЙ ==========
-@app.route('/qr/friend')
-@login_required
-def qr_friend():
-    session_id = secrets.token_urlsafe(32)
-    user = get_user_by_id(session['user_id'])
-    friend_qr_sessions[session_id] = {
-        'user_id': session['user_id'],
-        'username': session['username'],
-        'full_name': user.get('full_name') if user else session['username'],
-        'created_at': datetime.now()
+# ========== СТАТИСТИКА ДЛЯ ГРАФИКОВ ==========
+def get_activity_stats():
+    conn = get_db()
+    c = conn.cursor()
+    
+    # Регистрации по дням за последние 30 дней
+    c.execute('''SELECT DATE(created_at) as date, COUNT(*) 
+                 FROM users 
+                 WHERE created_at > date('now', '-30 days')
+                 GROUP BY DATE(created_at)''')
+    registrations = {r[0]: r[1] for r in c.fetchall()}
+    
+    # Посты по дням за последние 30 дней
+    c.execute('''SELECT DATE(created_at) as date, COUNT(*) 
+                 FROM posts 
+                 WHERE created_at > date('now', '-30 days')
+                 GROUP BY DATE(created_at)''')
+    posts = {r[0]: r[1] for r in c.fetchall()}
+    
+    # Сообщения по дням
+    c.execute('''SELECT DATE(created_at) as date, COUNT(*) 
+                 FROM messages 
+                 WHERE created_at > date('now', '-30 days')
+                 GROUP BY DATE(created_at)''')
+    messages = {r[0]: r[1] for r in c.fetchall()}
+    
+    conn.close()
+    
+    # Создаем массив за последние 30 дней
+    dates = []
+    reg_data = []
+    post_data = []
+    msg_data = []
+    
+    for i in range(30, -1, -1):
+        date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+        dates.append(date)
+        reg_data.append(registrations.get(date, 0))
+        post_data.append(posts.get(date, 0))
+        msg_data.append(messages.get(date, 0))
+    
+    return {
+        'dates': dates,
+        'registrations': reg_data,
+        'posts': post_data,
+        'messages': msg_data
     }
-    return render_template('qr_friend.html', session_id=session_id, username=session['username'], full_name=user.get('full_name') if user else session['username'], user_id=session['user_id'])
 
-@app.route('/qr/friend/scan/<session_id>')
-def qr_friend_scan(session_id):
-    if session_id not in friend_qr_sessions:
-        return "QR-код недействителен", 404
-    return render_template('qr_friend_scan.html', session_id=session_id, friend=friend_qr_sessions[session_id])
-
-@app.route('/api/friend/add/<int:friend_id>', methods=['POST'])
-@login_required
-def api_friend_add(friend_id):
-    if session['user_id'] == friend_id:
-        return jsonify({'success': False, 'error': 'Нельзя добавить себя'})
-    
-    if follow_user(session['user_id'], friend_id):
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'error': 'Уже в друзьях'})
-
-# ========== QR ВХОД ==========
-@sock.route('/ws/qr/<session_id>')
-def ws_qr(ws, session_id):
-    ws_connections[session_id] = ws
-    try:
-        while True:
-            data = ws.receive()
-            if data:
-                pass
-    except:
-        pass
-    finally:
-        if session_id in ws_connections:
-            del ws_connections[session_id]
-
-@app.route('/qr-login')
-def qr_login():
-    session_id = secrets.token_urlsafe(32)
-    qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
-    return render_template('qr_login.html', session_id=session_id)
-
-@app.route('/qr/scan/<session_id>')
-def qr_scan(session_id):
-    if session_id not in qr_sessions:
-        qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
-    return render_template('qr_scan.html', session_id=session_id)
-
-@app.route('/api/qr/status/<session_id>')
-def api_qr_status(session_id):
-    if session_id in qr_sessions:
-        return jsonify({'status': qr_sessions[session_id].get('status', 'pending')})
-    return jsonify({'status': 'pending'})
-
-@app.route('/api/qr/confirm', methods=['POST'])
-@login_required
-def api_qr_confirm():
-    data = request.get_json()
-    session_id = data.get('session_id')
-    
-    if session_id in qr_sessions:
-        qr_sessions[session_id]['status'] = 'confirmed'
-        qr_sessions[session_id]['user_id'] = session['user_id']
-        
-        if session_id in ws_connections:
-            try:
-                ws_connections[session_id].send(json.dumps({
-                    'type': 'login_success',
-                    'user_id': session['user_id'],
-                    'username': session['username']
-                }))
-            except:
-                pass
-        
-        return jsonify({'success': True, 'user_id': session['user_id'], 'username': session['username']})
-    
-    return jsonify({'success': False})
-
-@app.route('/api/qr/login/<session_id>')
-def api_qr_login(session_id):
-    if session_id in qr_sessions and qr_sessions[session_id].get('status') == 'confirmed':
-        user_id = qr_sessions[session_id].get('user_id')
-        user = get_user_by_id(user_id)
-        if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['is_admin'] = user['is_admin']
-            session['is_premium'] = user['is_premium']
-            update_last_seen(user['id'])
-            return redirect(url_for('feed'))
-    
-    return redirect(url_for('login'))
-
-# ========== 2FA ==========
-@app.route('/2fa/setup', methods=['POST'])
-@login_required
-def setup_2fa():
-    secret = pyotp.random_base32()
-    totp = pyotp.TOTP(secret)
-    provisioning_uri = totp.provisioning_uri(session['username'], issuer_name="Connect")
-    
+def get_popular_posts(limit=10):
     conn = get_db()
     c = conn.cursor()
-    c.execute("UPDATE users SET twofa_secret = ? WHERE id = ?", (secret, session['user_id']))
+    c.execute('''SELECT posts.*, users.username, users.avatar, users.full_name
+                 FROM posts 
+                 JOIN users ON posts.user_id = users.id 
+                 ORDER BY posts.likes DESC, posts.created_at DESC 
+                 LIMIT ?''', (limit,))
+    posts = c.fetchall()
+    conn.close()
+    return [dict(p) for p in posts]
+
+def get_mass_notification_history():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT * FROM mass_notifications ORDER BY created_at DESC LIMIT 20''')
+    notifications = c.fetchall()
+    conn.close()
+    return [dict(n) for n in notifications]
+
+def save_mass_notification(title, message, sent_by):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT INTO mass_notifications (title, message, sent_by, created_at) VALUES (?, ?, ?, ?)",
+              (title, message, sent_by, datetime.now()))
     conn.commit()
     conn.close()
-    
-    return jsonify({'secret': secret, 'uri': provisioning_uri})
 
-@app.route('/2fa/verify', methods=['GET', 'POST'])
-def twofa_verify():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    
-    if request.method == 'POST':
-        code = request.form.get('code')
+# ========== ДЕКОРАТОРЫ ==========
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        update_last_seen(session['user_id'])
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
         user = get_user_by_id(session['user_id'])
-        
-        if user and user.get('twofa_secret'):
-            totp = pyotp.TOTP(user['twofa_secret'])
-            if totp.verify(code):
-                session['2fa_verified'] = True
-                return redirect(url_for('feed'))
-        
-        return render_template('twofa.html', error='Неверный код')
-    
-    return render_template('twofa.html')
+        if not user or not user.get('is_admin'):
+            return "Access denied", 403
+        return f(*args, **kwargs)
+    return decorated_function
 
-@app.route('/2fa/disable', methods=['POST'])
+# ========== НАСТРОЙКИ ПРОФИЛЯ ==========
+@app.route('/settings')
 @login_required
-def disable_2fa():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("UPDATE users SET twofa_secret = NULL WHERE id = ?", (session['user_id'],))
-    conn.commit()
-    conn.close()
-    session.pop('2fa_verified', None)
+def settings_page():
+    return render_template('settings.html', username=session['username'], user_id=session['user_id'])
+
+@app.route('/api/save_settings', methods=['POST'])
+@login_required
+def save_settings():
+    data = request.get_json()
+    theme_color = data.get('theme_color')
+    theme_background = data.get('theme_background')
+    chat_wallpaper = data.get('chat_wallpaper')
+    animations_enabled = data.get('animations_enabled', 1)
+    
+    update_user_settings(session['user_id'], theme_color, theme_background, chat_wallpaper, animations_enabled)
     return jsonify({'success': True})
 
-# ========== ВОССТАНОВЛЕНИЕ ПАРОЛЯ ==========
-@app.route('/forgot-password', methods=['GET', 'POST'])
-def forgot_password():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        user = get_user_by_email(email)
-        if user:
-            token = secrets.token_urlsafe(32)
-            reset_tokens[token] = {'user_id': user['id'], 'expires': datetime.now() + timedelta(hours=1)}
-            reset_url = url_for('reset_password', token=token, _external=True)
-            print(f"Ссылка для сброса пароля: {reset_url}")
-            return render_template('forgot_password.html', message='Инструкция отправлена на email')
-        return render_template('forgot_password.html', error='Email не найден')
-    return render_template('forgot_password.html')
-
-@app.route('/reset-password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    if token not in reset_tokens or reset_tokens[token]['expires'] < datetime.now():
-        return "Ссылка недействительна или истекла", 400
-    
-    if request.method == 'POST':
-        new_password = request.form.get('password')
-        hashed_password = hash_password(new_password)
-        user_id = reset_tokens[token]['user_id']
-        
-        conn = get_db()
-        c = conn.cursor()
-        c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
-        conn.commit()
-        conn.close()
-        
-        del reset_tokens[token]
-        return redirect(url_for('login'))
-    
-    return render_template('reset_password.html', token=token)
-
-# ========== ПОДТВЕРЖДЕНИЕ EMAIL/ТЕЛЕФОНА ==========
-@app.route('/verify/send', methods=['POST'])
+@app.route('/api/get_settings')
 @login_required
-def send_verification():
-    data = request.get_json()
-    contact_type = data.get('type')
-    contact = data.get('contact')
-    
-    if not contact:
-        return jsonify({'success': False, 'error': 'Контакт не указан'})
-    
-    code = str(secrets.randbelow(900000) + 100000)
-    verification_codes[session['user_id']] = {
-        'code': code,
-        'contact': contact,
-        'type': contact_type,
-        'expires': datetime.now() + timedelta(minutes=10)
-    }
-    
-    print(f"Код подтверждения для {contact}: {code}")
-    return jsonify({'success': True, 'message': 'Код отправлен'})
+def get_settings():
+    settings = get_user_settings(session['user_id'])
+    return jsonify(settings)
 
-@app.route('/verify/confirm', methods=['POST'])
+@app.route('/upload_wallpaper', methods=['POST'])
 @login_required
-def confirm_verification():
-    data = request.get_json()
-    code = data.get('code')
+def upload_wallpaper():
+    if 'wallpaper' not in request.files:
+        return jsonify({'success': False, 'error': 'Нет файла'})
     
-    if session['user_id'] in verification_codes:
-        vc = verification_codes[session['user_id']]
-        if vc['code'] == code and vc['expires'] > datetime.now():
-            conn = get_db()
-            c = conn.cursor()
-            if vc['type'] == 'email':
-                c.execute("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
-            else:
-                c.execute("UPDATE users SET phone = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
-            conn.commit()
-            conn.close()
-            del verification_codes[session['user_id']]
-            return jsonify({'success': True})
+    file = request.files['wallpaper']
+    if file and allowed_file(file.filename):
+        filename = secure_filename(f"wallpaper_{session['user_id']}_{datetime.now().timestamp()}_{file.filename}")
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'wallpapers', filename)
+        file.save(filepath)
+        wallpaper_path = f'/static/uploads/wallpapers/{filename}'
+        
+        update_user_settings(session['user_id'], chat_wallpaper=wallpaper_path)
+        return jsonify({'success': True, 'wallpaper': wallpaper_path})
     
-    return jsonify({'success': False, 'error': 'Неверный код'})
+    return jsonify({'success': False, 'error': 'Неверный формат'})
 
 # ========== ОСНОВНЫЕ МАРШРУТЫ ==========
 @app.route('/')
@@ -1267,7 +1028,6 @@ def login():
             session['is_premium'] = user['is_premium'] if len(user) > 9 else 0
             update_last_seen(user['id'])
             
-            # Проверка 2FA
             user_data = get_user_by_id(user['id'])
             if user_data and user_data.get('twofa_secret'):
                 return redirect(url_for('twofa_verify'))
@@ -1313,6 +1073,7 @@ def feed():
     posts = get_all_posts()
     liked_posts = [post['id'] for post in posts if has_liked_post(post['id'], session['user_id'])]
     user = get_user_by_id(session['user_id'])
+    settings = get_user_settings(session['user_id'])
     
     return render_template('feed.html', 
                          username=session['username'], 
@@ -1322,7 +1083,8 @@ def feed():
                          is_admin=session.get('is_admin', False),
                          is_premium=session.get('is_premium', False),
                          user_avatar=user['avatar'] if user else None,
-                         unread_count=get_unread_count(session['user_id']))
+                         unread_count=get_unread_count(session['user_id']),
+                         settings=settings)
 
 @app.route('/profile/<int:user_id>')
 @login_required
@@ -1331,7 +1093,6 @@ def profile(user_id):
     if not user:
         return "User not found", 404
     
-    # Проверка блокировки
     if is_blocked(session['user_id'], user_id):
         return render_template('blocked.html', user=user)
     
@@ -1342,6 +1103,7 @@ def profile(user_id):
     current_user = get_user_by_id(session['user_id'])
     achievements = get_user_achievements(user_id)
     level_info = get_user_level(user_id)
+    settings = get_user_settings(session['user_id'])
     
     return render_template('profile.html', 
                          profile_user=user,
@@ -1357,7 +1119,8 @@ def profile(user_id):
                          unread_count=get_unread_count(session['user_id']),
                          achievements=achievements,
                          level=level_info['level'],
-                         experience=level_info['experience'])
+                         experience=level_info['experience'],
+                         settings=settings)
 
 @app.route('/update_profile', methods=['POST'])
 @login_required
@@ -1443,6 +1206,7 @@ def like_post_route(post_id):
         add_experience(session['user_id'], 1)
         return jsonify({'liked': True, 'likes_count': post['likes'] if post else 0})
 
+# ========== АДМИН ПАНЕЛЬ ==========
 @app.route('/admin')
 @admin_required
 def admin_panel():
@@ -1452,14 +1216,22 @@ def admin_panel():
     total_posts = get_total_posts()
     all_users = get_all_users()
     posts = get_all_posts()
+    reports = get_reports()
+    stickers = get_all_stickers()
+    popular_posts = get_popular_posts(10)
+    activity_stats = get_activity_stats()
     
-    return render_template('admin.html', 
+    return render_template('admin_dashboard.html', 
                          total_users=total_users,
                          today_users=today_users,
                          online_users=online_users,
                          total_posts=total_posts,
                          users=all_users,
                          posts=posts,
+                         reports=reports,
+                         stickers=stickers,
+                         popular_posts=popular_posts,
+                         activity_stats=activity_stats,
                          username=session['username'],
                          is_admin=True)
 
@@ -1488,31 +1260,105 @@ def admin_remove_admin(user_id):
             return jsonify({'success': True})
     return jsonify({'success': False})
 
+@app.route('/admin/resolve_report/<int:report_id>', methods=['POST'])
+@admin_required
+def admin_resolve_report(report_id):
+    if resolve_report(report_id):
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/admin/send_mass_notification', methods=['POST'])
+@admin_required
+def admin_send_mass_notification():
+    data = request.get_json()
+    title = data.get('title', 'Важное уведомление')
+    message = data.get('message', '')
+    
+    # Сохраняем в историю
+    save_mass_notification(title, message, session['username'])
+    
+    # Отправляем всем пользователям (упрощенно)
+    all_users = get_all_users()
+    for user in all_users:
+        # Здесь можно отправить email, push уведомления
+        pass
+    
+    return jsonify({'success': True})
+
+@app.route('/admin/add_sticker', methods=['POST'])
+@admin_required
+def admin_add_sticker():
+    name = request.form.get('name')
+    category = request.form.get('category')
+    is_premium = int(request.form.get('is_premium', 0))
+    
+    if 'image' in request.files:
+        file = request.files['image']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(f"sticker_{datetime.now().timestamp()}_{file.filename}")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'stickers', filename)
+            file.save(filepath)
+            image_url = f'/static/uploads/stickers/{filename}'
+            
+            if add_sticker(name, image_url, category, is_premium):
+                return jsonify({'success': True})
+    
+    return jsonify({'success': False})
+
+@app.route('/admin/delete_sticker/<int:sticker_id>', methods=['POST'])
+@admin_required
+def admin_delete_sticker(sticker_id):
+    if delete_sticker(sticker_id):
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/admin/backups')
+@admin_required
+def list_backups():
+    backup_dir = os.path.join(BASE_DIR, 'backups')
+    backups = []
+    if os.path.exists(backup_dir):
+        for f in sorted(os.listdir(backup_dir), reverse=True):
+            if f.startswith('users_backup_'):
+                stat = os.stat(os.path.join(backup_dir, f))
+                backups.append({
+                    'name': f,
+                    'size': stat.st_size,
+                    'date': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+    return render_template('backups.html', backups=backups)
+
+@app.route('/admin/restore/<backup_name>')
+@admin_required
+def restore_backup(backup_name):
+    backup_path = os.path.join(BASE_DIR, 'backups', backup_name)
+    if os.path.exists(backup_path):
+        shutil.copy2(backup_path, DATABASE_PATH)
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+@app.route('/admin/stickers')
+@admin_required
+def admin_stickers():
+    stickers = get_all_stickers()
+    return render_template('admin_stickers.html', stickers=stickers)
+
 @app.route('/admin/reports')
 @admin_required
 def admin_reports():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''SELECT reports.*, 
-                 reporter.username as reporter_name, 
-                 reported.username as reported_name
-                 FROM reports 
-                 JOIN users as reporter ON reports.reporter_id = reporter.id
-                 JOIN users as reported ON reports.reported_id = reported.id
-                 ORDER BY reports.created_at DESC''')
-    reports = c.fetchall()
-    conn.close()
-    return render_template('admin_reports.html', reports=[dict(r) for r in reports])
+    reports = get_reports()
+    return render_template('admin_reports.html', reports=reports)
 
-@app.route('/admin/report/<int:report_id>/resolve', methods=['POST'])
+@app.route('/admin/mass_notification')
 @admin_required
-def resolve_report(report_id):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", (report_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+def admin_mass_notification():
+    return render_template('admin_mass_notification.html')
+
+@app.route('/admin/activity_stats')
+@admin_required
+def admin_activity_stats():
+    stats = get_activity_stats()
+    return jsonify(stats)
 
 @app.route('/buy_premium', methods=['POST'])
 @login_required
@@ -1528,6 +1374,8 @@ def chats():
     user_chats = get_user_chats(session['user_id'])
     unread_count = get_unread_count(session['user_id'])
     current_user = get_user_by_id(session['user_id'])
+    settings = get_user_settings(session['user_id'])
+    
     return render_template('chats.html', 
                          chats=user_chats,
                          username=session['username'], 
@@ -1535,7 +1383,8 @@ def chats():
                          user_id=session['user_id'], 
                          is_admin=session.get('is_admin', False), 
                          is_premium=session.get('is_premium', False),
-                         user_avatar=current_user['avatar'] if current_user else None)
+                         user_avatar=current_user['avatar'] if current_user else None,
+                         settings=settings)
 
 @app.route('/chat/<int:user_id>')
 @login_required
@@ -1553,6 +1402,7 @@ def chat(user_id):
     mark_messages_read(chat_id, session['user_id'])
     
     level_info = get_user_level(session['user_id'])
+    settings = get_user_settings(session['user_id'])
     
     return render_template('chat.html', 
                          other_user=other_user, 
@@ -1560,7 +1410,8 @@ def chat(user_id):
                          username=session['username'], 
                          user_id=session['user_id'],
                          user_avatar=current_user['avatar'] if current_user else None,
-                         level=level_info['level'])
+                         level=level_info['level'],
+                         settings=settings)
 
 @app.route('/send_message', methods=['POST'])
 @login_required
@@ -1784,6 +1635,234 @@ def api_me():
             'avatar': user['avatar']
         }})
     return jsonify({'user': None})
+
+# ========== QR ВХОД И ДРУГИЕ МАРШРУТЫ ==========
+@sock.route('/ws/qr/<session_id>')
+def ws_qr(ws, session_id):
+    ws_connections[session_id] = ws
+    try:
+        while True:
+            data = ws.receive()
+            if data:
+                pass
+    except:
+        pass
+    finally:
+        if session_id in ws_connections:
+            del ws_connections[session_id]
+
+@app.route('/qr-login')
+def qr_login():
+    session_id = secrets.token_urlsafe(32)
+    qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
+    return render_template('qr_login.html', session_id=session_id)
+
+@app.route('/qr/scan/<session_id>')
+def qr_scan(session_id):
+    if session_id not in qr_sessions:
+        qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
+    return render_template('qr_scan.html', session_id=session_id)
+
+@app.route('/api/qr/status/<session_id>')
+def api_qr_status(session_id):
+    if session_id in qr_sessions:
+        return jsonify({'status': qr_sessions[session_id].get('status', 'pending')})
+    return jsonify({'status': 'pending'})
+
+@app.route('/api/qr/confirm', methods=['POST'])
+@login_required
+def api_qr_confirm():
+    data = request.get_json()
+    session_id = data.get('session_id')
+    
+    if session_id in qr_sessions:
+        qr_sessions[session_id]['status'] = 'confirmed'
+        qr_sessions[session_id]['user_id'] = session['user_id']
+        
+        if session_id in ws_connections:
+            try:
+                ws_connections[session_id].send(json.dumps({
+                    'type': 'login_success',
+                    'user_id': session['user_id'],
+                    'username': session['username']
+                }))
+            except:
+                pass
+        
+        return jsonify({'success': True, 'user_id': session['user_id'], 'username': session['username']})
+    
+    return jsonify({'success': False})
+
+@app.route('/api/qr/login/<session_id>')
+def api_qr_login(session_id):
+    if session_id in qr_sessions and qr_sessions[session_id].get('status') == 'confirmed':
+        user_id = qr_sessions[session_id].get('user_id')
+        user = get_user_by_id(user_id)
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['is_admin'] = user['is_admin']
+            session['is_premium'] = user['is_premium']
+            update_last_seen(user['id'])
+            return redirect(url_for('feed'))
+    
+    return redirect(url_for('login'))
+
+# ========== QR-КОД ДЛЯ ДОБАВЛЕНИЯ ДРУЗЕЙ ==========
+@app.route('/qr/friend')
+@login_required
+def qr_friend():
+    session_id = secrets.token_urlsafe(32)
+    user = get_user_by_id(session['user_id'])
+    friend_qr_sessions[session_id] = {
+        'user_id': session['user_id'],
+        'username': session['username'],
+        'full_name': user.get('full_name') if user else session['username'],
+        'created_at': datetime.now()
+    }
+    return render_template('qr_friend.html', session_id=session_id, username=session['username'], full_name=user.get('full_name') if user else session['username'], user_id=session['user_id'])
+
+@app.route('/qr/friend/scan/<session_id>')
+def qr_friend_scan(session_id):
+    if session_id not in friend_qr_sessions:
+        return "QR-код недействителен", 404
+    return render_template('qr_friend_scan.html', session_id=session_id, friend=friend_qr_sessions[session_id])
+
+@app.route('/api/friend/add/<int:friend_id>', methods=['POST'])
+@login_required
+def api_friend_add(friend_id):
+    if session['user_id'] == friend_id:
+        return jsonify({'success': False, 'error': 'Нельзя добавить себя'})
+    
+    if follow_user(session['user_id'], friend_id):
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Уже в друзьях'})
+
+# ========== 2FA ==========
+@app.route('/2fa/setup', methods=['POST'])
+@login_required
+def setup_2fa():
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(session['username'], issuer_name="Connect")
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET twofa_secret = ? WHERE id = ?", (secret, session['user_id']))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'secret': secret, 'uri': provisioning_uri})
+
+@app.route('/2fa/verify', methods=['GET', 'POST'])
+def twofa_verify():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        code = request.form.get('code')
+        user = get_user_by_id(session['user_id'])
+        
+        if user and user.get('twofa_secret'):
+            totp = pyotp.TOTP(user['twofa_secret'])
+            if totp.verify(code):
+                session['2fa_verified'] = True
+                return redirect(url_for('feed'))
+        
+        return render_template('twofa.html', error='Неверный код')
+    
+    return render_template('twofa.html')
+
+@app.route('/2fa/disable', methods=['POST'])
+@login_required
+def disable_2fa():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET twofa_secret = NULL WHERE id = ?", (session['user_id'],))
+    conn.commit()
+    conn.close()
+    session.pop('2fa_verified', None)
+    return jsonify({'success': True})
+
+# ========== ВОССТАНОВЛЕНИЕ ПАРОЛЯ ==========
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = get_user_by_email(email)
+        if user:
+            token = secrets.token_urlsafe(32)
+            reset_tokens[token] = {'user_id': user['id'], 'expires': datetime.now() + timedelta(hours=1)}
+            reset_url = url_for('reset_password', token=token, _external=True)
+            print(f"Ссылка для сброса пароля: {reset_url}")
+            return render_template('forgot_password.html', message='Инструкция отправлена на email')
+        return render_template('forgot_password.html', error='Email не найден')
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if token not in reset_tokens or reset_tokens[token]['expires'] < datetime.now():
+        return "Ссылка недействительна или истекла", 400
+    
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        hashed_password = hash_password(new_password)
+        user_id = reset_tokens[token]['user_id']
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
+        conn.commit()
+        conn.close()
+        
+        del reset_tokens[token]
+        return redirect(url_for('login'))
+    
+    return render_template('reset_password.html', token=token)
+
+# ========== ПОДТВЕРЖДЕНИЕ EMAIL/ТЕЛЕФОНА ==========
+@app.route('/verify/send', methods=['POST'])
+@login_required
+def send_verification():
+    data = request.get_json()
+    contact_type = data.get('type')
+    contact = data.get('contact')
+    
+    if not contact:
+        return jsonify({'success': False, 'error': 'Контакт не указан'})
+    
+    code = str(secrets.randbelow(900000) + 100000)
+    verification_codes[session['user_id']] = {
+        'code': code,
+        'contact': contact,
+        'type': contact_type,
+        'expires': datetime.now() + timedelta(minutes=10)
+    }
+    
+    print(f"Код подтверждения для {contact}: {code}")
+    return jsonify({'success': True, 'message': 'Код отправлен'})
+
+@app.route('/verify/confirm', methods=['POST'])
+@login_required
+def confirm_verification():
+    data = request.get_json()
+    code = data.get('code')
+    
+    if session['user_id'] in verification_codes:
+        vc = verification_codes[session['user_id']]
+        if vc['code'] == code and vc['expires'] > datetime.now():
+            conn = get_db()
+            c = conn.cursor()
+            if vc['type'] == 'email':
+                c.execute("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
+            else:
+                c.execute("UPDATE users SET phone = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
+            conn.commit()
+            conn.close()
+            del verification_codes[session['user_id']]
+            return jsonify({'success': True})
+    
+    return jsonify({'success': False, 'error': 'Неверный код'})
 
 @app.route('/health')
 def health():

@@ -1,12 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Connect">
-    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-    <meta name="theme-color" content="#667eea">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Регистрация - Connect</title>
@@ -168,6 +162,40 @@
             margin-right: 12px;
         }
 
+        /* Капча стили */
+        .captcha-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .captcha-code {
+            font-size: 28px;
+            letter-spacing: 8px;
+            font-family: monospace;
+            background: #1a1a2e;
+            padding: 10px;
+            border-radius: 8px;
+            display: inline-block;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .captcha-input {
+            width: 200px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .refresh-captcha {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
         .btn-register {
             width: 100%;
             padding: 14px;
@@ -185,29 +213,6 @@
         .btn-register:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .qr-register-btn {
-            width: 100%;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 30px;
-            color: white;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .qr-register-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
         }
 
         .login-link {
@@ -283,7 +288,7 @@
             </div>
             {% endif %}
 
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" id="registerForm">
                 <div class="row-2">
                     <div class="form-group">
                         <div class="input-icon">
@@ -352,17 +357,57 @@
                     <input type="file" name="avatar" class="file-input" accept="image/*">
                 </div>
 
+                <!-- Капча -->
+                <div class="form-group">
+                    <div class="captcha-container">
+                        <div class="captcha-code" id="captchaCode"></div>
+                        <div style="margin-top: 12px;">
+                            <input type="text" id="captchaInput" placeholder="Введите код с картинки" class="input-field captcha-input">
+                            <button type="button" class="refresh-captcha" onclick="refreshCaptcha()">🔄</button>
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-register">Зарегистрироваться 🚀</button>
             </form>
 
             <div class="login-link">
                 Уже есть аккаунт? <a href="/login">Войти</a>
             </div>
-
-            <a href="/qr-login" class="qr-register-btn">
-                📱 Войти через QR-код
-            </a>
         </div>
     </div>
+
+    <script>
+        let captchaValue = '';
+        
+        function generateCaptcha() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            let captcha = '';
+            for(let i = 0; i < 6; i++) {
+                captcha += chars[Math.floor(Math.random() * chars.length)];
+            }
+            captchaValue = captcha;
+            document.getElementById('captchaCode').textContent = captcha;
+        }
+        
+        function refreshCaptcha() {
+            generateCaptcha();
+        }
+        
+        // Проверка капчи при отправке формы
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const captchaInput = document.getElementById('captchaInput');
+            if (captchaInput.value !== captchaValue) {
+                e.preventDefault();
+                alert('❌ Неверный код капчи! Пожалуйста, введите код с картинки.');
+                refreshCaptcha();
+                captchaInput.value = '';
+                return false;
+            }
+        });
+        
+        // Генерируем капчу при загрузке страницы
+        generateCaptcha();
+    </script>
 </body>
 </html>
