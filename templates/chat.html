@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Чат с {{ other_user.username }} - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="manifest" href="/static/manifest.json">
     <style>
         * {
             margin: 0;
@@ -29,7 +30,6 @@
             position: relative;
         }
 
-        /* Шапка чата */
         .chat-header {
             background: rgba(20, 30, 45, 0.95);
             backdrop-filter: blur(20px);
@@ -161,7 +161,6 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
-        /* Область сообщений */
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -228,7 +227,6 @@
             margin-left: 8px;
         }
 
-        /* Реакции */
         .reaction-bar {
             position: absolute;
             bottom: 100%;
@@ -274,7 +272,6 @@
             font-size: 11px;
         }
 
-        /* Контекстное меню */
         .message-context-menu {
             position: fixed;
             background: rgba(20, 30, 45, 0.95);
@@ -299,7 +296,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Поиск по чату */
         .search-chat {
             position: absolute;
             top: 70px;
@@ -324,7 +320,6 @@
             outline: none;
         }
 
-        /* Поле ввода */
         .message-input-container {
             background: rgba(20, 30, 45, 0.95);
             backdrop-filter: blur(20px);
@@ -395,7 +390,6 @@
             transform: scale(0.95);
         }
 
-        /* Эмодзи панель */
         .emoji-panel {
             position: absolute;
             bottom: 80px;
@@ -428,7 +422,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Стикеры */
         .stickers-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -451,7 +444,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Модальное окно */
         .modal {
             display: none;
             position: fixed;
@@ -494,7 +486,6 @@
             cursor: pointer;
         }
 
-        /* Пустой чат */
         .empty-chat {
             text-align: center;
             padding: 60px 20px;
@@ -532,7 +523,6 @@
 </head>
 <body>
     <div class="chat-app">
-        <!-- Шапка чата -->
         <div class="chat-header">
             <button class="back-btn" onclick="window.location.href='/chats'">←</button>
             <div class="chat-avatar">
@@ -557,14 +547,12 @@
             </div>
         </div>
 
-        <!-- Поиск по чату -->
         <div class="search-chat" id="searchChat">
             <input type="text" id="searchInput" placeholder="Поиск сообщений..." onkeyup="searchMessages()">
             <button class="chat-action-btn" onclick="searchMessages()">🔍</button>
             <button class="chat-action-btn" onclick="toggleSearch()">✖</button>
         </div>
 
-        <!-- Контекстное меню -->
         <div class="message-context-menu" id="contextMenu">
             <div class="context-menu-item" onclick="replyToMessage()">💬 Ответить</div>
             <div class="context-menu-item" onclick="forwardMessage()">📤 Переслать</div>
@@ -573,7 +561,6 @@
             <div class="context-menu-item" onclick="favoriteMessage()">⭐ В избранное</div>
         </div>
 
-        <!-- Область сообщений -->
         <div class="messages-container" id="messagesContainer">
             {% if messages %}
                 {% for msg in messages %}
@@ -617,7 +604,6 @@
             {% endif %}
         </div>
 
-        <!-- Поле ввода -->
         <div class="message-input-container">
             <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
             <button class="voice-btn" id="voiceBtn" onclick="startVoiceRecording()">🎤</button>
@@ -627,7 +613,6 @@
             <button class="send-btn" onclick="sendMessage()">📤</button>
         </div>
 
-        <!-- Эмодзи панель -->
         <div class="emoji-panel" id="emojiPanel">
             <span class="emoji" onclick="addEmoji('😊')">😊</span>
             <span class="emoji" onclick="addEmoji('😂')">😂</span>
@@ -644,7 +629,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно стикеров -->
     <div id="stickersModal" class="modal">
         <div class="modal-content">
             <h2>😊 Стикеры</h2>
@@ -906,18 +890,21 @@
                 .catch(() => alert('Нет доступа к микрофону'));
         }
 
-        // Закрытие меню при клике вне
         document.addEventListener('click', () => {
             document.getElementById('contextMenu').style.display = 'none';
             document.getElementById('emojiPanel').classList.remove('active');
         });
 
-        // Авто-обновление
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         checkInterval = setInterval(loadMessages, 2000);
         window.addEventListener('beforeunload', () => {
             if (checkInterval) clearInterval(checkInterval);
         });
+        
+        // Регистрация Service Worker для push-уведомлений
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
     </script>
 </body>
 </html>
