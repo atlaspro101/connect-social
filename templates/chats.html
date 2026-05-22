@@ -1,85 +1,104 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Сообщения - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Connect">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <meta name="theme-color" content="#667eea">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Сообщения - Connect</title>
-    <link rel="icon" type="image/png" href="/static/favicon.png">
+    
     <script>
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
         function isMobile() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
                    || window.innerWidth <= 768;
         }
-        if (isMobile()) {
-            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
-            document.write('<style>.sidebar, .sidebar-toggle { display: none !important; } .hamburger-btn { display: flex !important; }</style>');
-        } else {
-            document.write('<link rel="stylesheet" href="/static/css/style.css">');
-            document.write('<style>.hamburger-btn, .hamburger-menu, .hamburger-overlay { display: none !important; } .sidebar, .sidebar-toggle { display: block !important; }</style>');
-        }
     </script>
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    
     <style>
-        .chats-container { max-width: 600px; margin: 60px auto 40px; padding: 20px; }
-        .chat-list { display: flex; flex-direction: column; gap: 12px; }
-        .chat-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 16px;
-            background: rgba(25, 35, 50, 0.7);
-            backdrop-filter: blur(12px);
-            border-radius: 20px;
-            text-decoration: none;
-            transition: all 0.3s;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .premium-nick {
+            background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: premiumGlow 2s linear infinite;
+            font-weight: 800;
         }
-        .chat-item:hover { transform: translateX(5px); background: rgba(25, 35, 50, 0.9); }
-        .chat-avatar {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            object-fit: cover;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            display: flex;
+        
+        @keyframes premiumGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        
+        .verified-badge {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
-            font-weight: bold;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
             color: white;
+            font-size: 11px;
         }
-        .chat-info { flex: 1; }
-        .chat-name { font-weight: 700; font-size: 16px; color: white; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-        .chat-last-message { font-size: 13px; color: rgba(255, 255, 255, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .chat-time { font-size: 11px; color: rgba(255, 255, 255, 0.4); }
-        .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; }
-        .premium-badge { font-size: 14px; margin-left: 4px; }
-        .premium-nick { background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; display: inline-block; }
-        @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-        .empty-chats { text-align: center; padding: 60px; background: rgba(25, 35, 50, 0.6); border-radius: 24px; }
-        @media (max-width: 768px) { 
-            .chats-container { margin-top: 20px; padding: 16px; }
-            .chat-avatar { width: 48px; height: 48px; font-size: 20px; }
+        
+        .premium-badge {
+            font-size: 14px;
+            margin-left: 4px;
         }
+        
+        .empty-chats {
+            text-align: center;
+            padding: 80px 40px;
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar, .sidebar-toggle { display: none !important; }
+            .hamburger-btn { display: flex !important; }
+        }
+        
         @media (min-width: 769px) {
-            .chats-container { margin-top: 80px; }
+            .hamburger-btn, .hamburger-menu, .hamburger-overlay { display: none !important; }
         }
     </style>
 </head>
 <body>
-    <!-- Гамбургер меню (ТОЛЬКО для мобильных) -->
-    <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()"><span></span></div>
+    <!-- Гамбургер меню (мобильные) -->
+    <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()">
+        <span></span>
+    </div>
     <div class="hamburger-menu" id="mobileMenu">
         <div class="menu-header">
             <div class="menu-logo">✨ Connect</div>
             <div class="menu-user">
-                {% if user_avatar %}<img src="{{ user_avatar }}" class="menu-avatar">{% else %}<div class="avatar-placeholder">{{ username[0].upper() }}</div>{% endif %}
-                <div class="menu-user-info"><div class="menu-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div><div class="menu-status">● Онлайн</div></div>
+                {% if user_avatar %}
+                    <img src="{{ user_avatar }}" class="menu-avatar">
+                {% else %}
+                    <div class="avatar-placeholder">{{ username[0].upper() }}</div>
+                {% endif %}
+                <div class="menu-user-info">
+                    <div class="menu-username">
+                        {{ username }}
+                        {% if is_admin %}<span class="verified-badge">✓</span>{% endif %}
+                        {% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
+                    </div>
+                    <div class="menu-status">● Онлайн</div>
+                </div>
             </div>
         </div>
         <div class="menu-nav">
@@ -87,20 +106,32 @@
             <a href="/profile/{{ user_id }}" class="menu-item">👤 Профиль</a>
             <a href="/chats" class="menu-item active">💬 Сообщения</a>
             <a href="#" class="menu-item" id="mobileSearchBtn">🔍 Поиск</a>
+            <a href="/qr/friend" class="menu-item">📱 QR-друг</a>
             {% if is_admin %}<a href="/admin" class="menu-item">👑 Админ панель</a>{% endif %}
-            <button class="menu-item" id="mobilePremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
+            <button class="menu-item" id="mobilePremiumBtn">⚔️ Connect Premium</button>
             <a href="/logout" class="menu-item">🚪 Выйти</a>
         </div>
     </div>
     <div class="hamburger-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
     
-    <!-- ПК сайдбар (ТОЛЬКО для ПК) -->
+    <!-- ПК сайдбар -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">✨ Connect</div>
             <div class="sidebar-user">
-                {% if user_avatar %}<img src="{{ user_avatar }}" class="sidebar-avatar">{% else %}<div class="avatar-placeholder">{{ username[0].upper() }}</div>{% endif %}
-                <div class="sidebar-user-info"><div class="sidebar-username">{{ username }}{% if is_admin %}<span class="verified-badge">✓</span>{% endif %}{% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}</div><div class="sidebar-user-status">● Онлайн</div></div>
+                {% if user_avatar %}
+                    <img src="{{ user_avatar }}" class="sidebar-avatar">
+                {% else %}
+                    <div class="avatar-placeholder">{{ username[0].upper() }}</div>
+                {% endif %}
+                <div class="sidebar-user-info">
+                    <div class="sidebar-username">
+                        {{ username }}
+                        {% if is_admin %}<span class="verified-badge">✓</span>{% endif %}
+                        {% if is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
+                    </div>
+                    <div class="sidebar-user-status">Онлайн</div>
+                </div>
             </div>
         </div>
         <div class="sidebar-nav">
@@ -108,19 +139,24 @@
             <a href="/profile/{{ user_id }}" class="sidebar-item">👤 Профиль</a>
             <a href="/chats" class="sidebar-item active">💬 Сообщения</a>
             <a href="#" class="sidebar-item" id="pcSearchBtn">🔍 Поиск</a>
+            <a href="/qr/friend" class="sidebar-item">📱 QR-друг</a>
             {% if is_admin %}<a href="/admin" class="sidebar-item">👑 Админ панель</a>{% endif %}
-            <button class="sidebar-item" id="pcPremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
+            <button class="sidebar-item" id="pcPremiumBtn">⚔️ Connect Premium</button>
+            <button class="sidebar-item" onclick="toggleTheme()">🌓 Тема</button>
             <a href="/logout" class="sidebar-item">🚪 Выйти</a>
         </div>
     </div>
     
     <div class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
     </div>
     
     <div class="main-content" id="mainContent">
         <div class="chats-container">
-            <h1>💬 Сообщения</h1>
+            <h1 style="margin-bottom: 24px; font-size: 28px;">💬 Сообщения</h1>
+            
             <div class="chat-list">
                 {% if chats %}
                     {% for chat in chats %}
@@ -138,7 +174,9 @@
                                 {% if chat.is_admin %}<span class="verified-badge">✓</span>{% endif %}
                                 {% if chat.is_premium %}<span class="premium-badge">⚔️</span>{% endif %}
                             </div>
-                            <div class="chat-last-message">{{ chat.last_message[:50] if chat.last_message else 'Нет сообщений' }}</div>
+                            <div class="chat-last-message">
+                                {{ chat.last_message[:50] if chat.last_message else 'Нет сообщений' }}
+                            </div>
                         </div>
                         <div class="chat-time">
                             {% if chat.last_message_time %}
@@ -148,94 +186,180 @@
                                     {{ chat.last_message_time }}
                                 {% endif %}
                             {% endif %}
+                            {% if chat.unread_count > 0 %}
+                                <span class="sidebar-badge" style="background: #667eea; margin-top: 4px;">
+                                    {{ chat.unread_count }}
+                                </span>
+                            {% endif %}
                         </div>
                     </a>
                     {% endfor %}
                 {% else %}
                     <div class="empty-chats">
-                        <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
-                        <h3>Нет сообщений</h3>
-                        <p style="color: rgba(255, 255, 255, 0.6); margin-top: 8px;">Начните диалог с другим пользователем</p>
+                        <div style="font-size: 64px; margin-bottom: 16px;">💬</div>
+                        <h3 style="margin-bottom: 8px;">Нет сообщений</h3>
+                        <p style="color: var(--text-muted); margin-bottom: 24px;">
+                            Начните диалог с другим пользователем
+                        </p>
+                        <button class="profile-action-btn primary" onclick="openSearchModal()">
+                            🔍 Найти друзей
+                        </button>
                     </div>
                 {% endif %}
             </div>
         </div>
     </div>
     
-    <div id="searchModal" class="modal" style="display:none;">
+    <!-- Модальное окно поиска -->
+    <div id="searchModal" class="modal">
         <div class="modal-content">
             <h2>🔍 Поиск пользователей</h2>
-            <input type="text" id="searchQuery" placeholder="Введите имя..." onkeyup="searchModal()">
+            <input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()">
             <div id="searchResultsModal"></div>
             <button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button>
         </div>
     </div>
     
-    <div id="premiumModal" class="modal" style="display:none;">
-        <div class="modal-content" style="text-align:center;">
-            <div style="font-size:48px;margin-bottom:16px;">⚔️</div>
+    <!-- Модальное окно Premium -->
+    <div id="premiumModal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 16px;">⚔️</div>
             <h2>Connect Premium</h2>
-            <p style="margin:16px 0;color:rgba(255,255,255,0.8);">Купите Premium и получите:</p>
-            <ul style="text-align:left;margin:16px 0;padding-left:20px;color:rgba(255,255,255,0.7);">
+            <p style="margin: 16px 0; color: var(--text-secondary);">Купите Premium и получите:</p>
+            <ul style="text-align: left; margin: 16px 0; padding-left: 20px; color: var(--text-secondary);">
                 <li>✨ Красивое фиолетово-белое переливание ника</li>
                 <li>⚔️ Иконка меча рядом с ником</li>
                 <li>🔥 Приоритет в поддержке</li>
                 <li>💎 Эксклюзивные эмодзи в комментариях</li>
             </ul>
-            <div style="font-size:32px;font-weight:bold;margin:20px 0;color:#9b59b6;">199 ₽</div>
-            <button class="modal-save" onclick="buyPremium()" style="width:100%;">💎 Купить Premium</button>
-            <button class="modal-cancel" onclick="closePremiumModal()" style="width:100%;margin-top:10px;">Отмена</button>
+            <div style="font-size: 36px; font-weight: bold; margin: 20px 0; color: #9b59b6;">199 ₽</div>
+            <button class="modal-save" onclick="buyPremium()">💎 Купить Premium</button>
+            <button class="modal-cancel" onclick="closePremiumModal()" style="margin-top: 10px;">Отмена</button>
         </div>
     </div>
     
     <script>
+        // Переключение темы
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+        
+        // Переключение сайдбара
         function toggleSidebar() {
             if (window.innerWidth > 768) {
-                const s=document.getElementById('sidebar'),m=document.getElementById('mainContent'),t=document.getElementById('sidebarToggle');
-                s.classList.toggle('collapsed');m.classList.toggle('expanded');t.classList.toggle('collapsed');
-                localStorage.setItem('sidebarCollapsed',s.classList.contains('collapsed'));
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                const toggle = document.getElementById('sidebarToggle');
+                
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+                toggle.classList.toggle('collapsed');
+                
+                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
             }
         }
-        if(window.innerWidth>768&&localStorage.getItem('sidebarCollapsed')==='true'){
+        
+        if (window.innerWidth > 768 && localStorage.getItem('sidebarCollapsed') === 'true') {
             document.getElementById('sidebar').classList.add('collapsed');
             document.getElementById('mainContent').classList.add('expanded');
             document.getElementById('sidebarToggle').classList.add('collapsed');
         }
         
-        function toggleMobileMenu(){
-            if(window.innerWidth<=768){
+        // Мобильное меню
+        function toggleMobileMenu() {
+            if (window.innerWidth <= 768) {
                 document.getElementById('mobileMenu').classList.toggle('open');
                 document.getElementById('menuOverlay').classList.toggle('active');
                 document.getElementById('hamburgerBtn').classList.toggle('open');
             }
         }
-        function closeMobileMenu(){
-            if(window.innerWidth<=768){
+        
+        function closeMobileMenu() {
+            if (window.innerWidth <= 768) {
                 document.getElementById('mobileMenu').classList.remove('open');
                 document.getElementById('menuOverlay').classList.remove('active');
                 document.getElementById('hamburgerBtn').classList.remove('open');
             }
         }
         
-        function openSearchModal(){document.getElementById('searchModal').style.display='flex';}
-        function closeSearchModal(){document.getElementById('searchModal').style.display='none';}
-        function searchModal(){const q=document.getElementById('searchQuery').value;if(q.length<2){document.getElementById('searchResultsModal').innerHTML='';return;}fetch(`/search?q=${encodeURIComponent(q)}`).then(r=>r.text()).then(html=>{const p=new DOMParser(),d=p.parseFromString(html,'text/html'),r=d.querySelectorAll('.search-result-card');const c=document.getElementById('searchResultsModal');c.innerHTML='';r.forEach(r=>c.appendChild(r.cloneNode(true)));});}
-        
-        document.getElementById('pcSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();openSearchModal();});
-        document.getElementById('mobileSearchBtn')?.addEventListener('click',(e)=>{e.preventDefault();closeMobileMenu();openSearchModal();});
-        
-        function openPremiumModal(){document.getElementById('premiumModal').style.display='flex';}
-        function closePremiumModal(){document.getElementById('premiumModal').style.display='none';}
-        function buyPremium(){
-            fetch('/buy_premium',{method:'POST'}).then(r=>r.json()).then(data=>{
-                if(data.success){alert('⚔️ Поздравляем! Вы стали Premium пользователем!');location.reload();}
-                else{alert('Ошибка при покупке Premium');}
-            });
+        // Модальные окна
+        function openSearchModal() {
+            document.getElementById('searchModal').style.display = 'flex';
         }
-        document.getElementById('pcPremiumBtn')?.addEventListener('click',openPremiumModal);
-        document.getElementById('mobilePremiumBtn')?.addEventListener('click',openPremiumModal);
         
-        document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeSearchModal(); closePremiumModal(); } });
+        function closeSearchModal() {
+            document.getElementById('searchModal').style.display = 'none';
+        }
+        
+        function searchUsersModal() {
+            const q = document.getElementById('searchQuery').value;
+            if (q.length < 2) {
+                document.getElementById('searchResultsModal').innerHTML = '';
+                return;
+            }
+            fetch(`/search?q=${encodeURIComponent(q)}`)
+                .then(r => r.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const results = doc.querySelectorAll('.search-result-card');
+                    const container = document.getElementById('searchResultsModal');
+                    container.innerHTML = '';
+                    results.forEach(r => container.appendChild(r.cloneNode(true)));
+                });
+        }
+        
+        function openPremiumModal() {
+            document.getElementById('premiumModal').classList.add('active');
+        }
+        
+        function closePremiumModal() {
+            document.getElementById('premiumModal').classList.remove('active');
+        }
+        
+        function buyPremium() {
+            fetch('/buy_premium', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('⚔️ Поздравляем! Вы стали Premium пользователем!');
+                        location.reload();
+                    } else {
+                        alert('❌ Ошибка при покупке Premium');
+                    }
+                });
+        }
+        
+        // Обработчики
+        document.getElementById('pcSearchBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            openSearchModal();
+        });
+        
+        document.getElementById('mobileSearchBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            closeMobileMenu();
+            openSearchModal();
+        });
+        
+        document.getElementById('pcPremiumBtn')?.addEventListener('click', openPremiumModal);
+        document.getElementById('mobilePremiumBtn')?.addEventListener('click', openPremiumModal);
+        
+        // Escape для закрытия модалок
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeSearchModal();
+                closePremiumModal();
+            }
+        });
+        
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
     </script>
 </body>
 </html>
