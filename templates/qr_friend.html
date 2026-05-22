@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой QR-код - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .qr-container {
+            background: rgba(25, 35, 50, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 40px;
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            color: white;
+        }
+
+        h2 {
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .username {
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 20px;
+        }
+
+        .qr-code {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            margin: 20px 0;
+            display: inline-block;
+        }
+
+        .qr-code canvas {
+            width: 200px;
+            height: 200px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .info {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            margin-top: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .qr-container { padding: 30px 20px; }
+            .qr-code canvas { width: 180px; height: 180px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="qr-container">
+        <div class="avatar">{{ username[0].upper() }}</div>
+        <h2>{{ full_name or username }}</h2>
+        <div class="username">@{{ username }}</div>
+        
+        <div class="qr-code" id="qrcode"></div>
+        
+        <p style="color: rgba(255,255,255,0.7);">Отсканируйте QR-код, чтобы добавить в друзья</p>
+        <div class="info">Покажите этот код другу, чтобы он отсканировал камерой телефона</div>
+        <a href="/profile/{{ user_id }}" class="back-link">← Вернуться в профиль</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        const sessionId = '{{ session_id }}';
+        const qrUrl = `${window.location.origin}/qr/friend/scan/${sessionId}`;
+        new QRCode(document.getElementById('qrcode'), {
+            text: qrUrl,
+            width: 200,
+            height: 200
+        });
+    </script>
+</body>
+</html>

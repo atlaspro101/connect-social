@@ -51,6 +51,29 @@ qr_sessions = {}
 ws_connections = {}
 verification_codes = {}
 reset_tokens = {}
+friend_qr_sessions = {}
+push_subscriptions = {}
+
+# ========== ДЕКОРАТОРЫ (ДОЛЖНЫ БЫТЬ ОПРЕДЕЛЕНЫ РАНЬШЕ) ==========
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        update_last_seen(session['user_id'])
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        user = get_user_by_id(session['user_id'])
+        if not user or not user.get('is_admin'):
+            return "Access denied", 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # ========== KEEP-ALIVE ФУНКЦИЯ ==========
 def keep_alive():
@@ -688,6 +711,7 @@ def send_message(sender_id, receiver_id, message, reply_to=None, media_path=None
     
     # Добавляем опыт за сообщение
     add_experience(sender_id, 1)
+    
     return msg_id
 
 def get_messages(user_id, other_user_id, limit=50):
@@ -967,84 +991,35 @@ def search_messages(chat_id, query, user_id):
     except:
         return []
 
-# ========== ДЕКОРАТОРЫ ==========
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        update_last_seen(session['user_id'])
-        return f(*args, **kwargs)
-    return decorated_function
+# ========== QR-КОД ДЛЯ ДОБАВЛЕНИЯ ДРУЗЕЙ ==========
+@app.route('/qr/friend')
+@login_required
+def qr_friend():
+    session_id = secrets.token_urlsafe(32)
+    user = get_user_by_id(session['user_id'])
+    friend_qr_sessions[session_id] = {
+        'user_id': session['user_id'],
+        'username': session['username'],
+        'full_name': user.get('full_name') if user else session['username'],
+        'created_at': datetime.now()
+    }
+    return render_template('qr_friend.html', session_id=session_id, username=session['username'], full_name=user.get('full_name') if user else session['username'], user_id=session['user_id'])
 
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        user = get_user_by_id(session['user_id'])
-        if not user or not user.get('is_admin'):
-            return "Access denied", 403
-        return f(*args, **kwargs)
-    return decorated_function
+@app.route('/qr/friend/scan/<session_id>')
+def qr_friend_scan(session_id):
+    if session_id not in friend_qr_sessions:
+        return "QR-код недействителен", 404
+    return render_template('qr_friend_scan.html', session_id=session_id, friend=friend_qr_sessions[session_id])
 
-# ========== МАРШРУТЫ ==========
-@app.route('/')
-def index():
-    if 'user_id' in session:
-        return redirect(url_for('feed'))
-    return render_template('index.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = hash_password(request.form['password'])
-        full_name = request.form.get('full_name', '')
-        birthday = request.form.get('birthday', '')
-        gender = request.form.get('gender', '')
-        bio = request.form.get('bio', '')
-        email = request.form.get('email', '')
-        phone = request.form.get('phone', '')
-        
-        avatar_path = None
-        if 'avatar' in request.files:
-            file = request.files['avatar']
-            if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename(f"{datetime.now().timestamp()}_{username}_{file.filename}")
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'avatars', filename)
-                file.save(filepath)
-                avatar_path = f'/static/uploads/avatars/{filename}'
-        
-        if add_user(username, password, full_name, birthday, gender, bio, avatar_path, email, phone):
-            return redirect(url_for('login'))
-        else:
-            return render_template('register.html', error='Имя пользователя уже существует')
-    return render_template('register.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = hash_password(request.form['password'])
-        
-        user = get_user(username, password)
-        if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            session['is_admin'] = user['is_admin']
-            session['is_premium'] = user['is_premium'] if len(user) > 9 else 0
-            update_last_seen(user['id'])
-            
-            # Проверка 2FA
-            user_data = get_user_by_id(user['id'])
-            if user_data and user_data.get('twofa_secret'):
-                return redirect(url_for('twofa_verify'))
-            
-            return redirect(url_for('feed'))
-        else:
-            return render_template('login.html', error='Неверное имя пользователя или пароль')
-    return render_template('login.html')
+@app.route('/api/friend/add/<int:friend_id>', methods=['POST'])
+@login_required
+def api_friend_add(friend_id):
+    if session['user_id'] == friend_id:
+        return jsonify({'success': False, 'error': 'Нельзя добавить себя'})
+    
+    if follow_user(session['user_id'], friend_id):
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Уже в друзьях'})
 
 # ========== QR ВХОД ==========
 @sock.route('/ws/qr/<session_id>')
@@ -1089,7 +1064,6 @@ def api_qr_confirm():
         qr_sessions[session_id]['status'] = 'confirmed'
         qr_sessions[session_id]['user_id'] = session['user_id']
         
-        # Отправляем через WebSocket
         if session_id in ws_connections:
             try:
                 ws_connections[session_id].send(json.dumps({
@@ -1110,15 +1084,11 @@ def api_qr_login(session_id):
         user_id = qr_sessions[session_id].get('user_id')
         user = get_user_by_id(user_id)
         if user:
-            # Устанавливаем сессию
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
             session['is_premium'] = user['is_premium']
-            session.permanent = True  # Делаем сессию постоянной
-            app.permanent_session_lifetime = timedelta(days=30)  # 30 дней
             update_last_seen(user['id'])
-            # Перенаправляем сразу на feed
             return redirect(url_for('feed'))
     
     return redirect(url_for('login'))
@@ -1250,6 +1220,63 @@ def confirm_verification():
     return jsonify({'success': False, 'error': 'Неверный код'})
 
 # ========== ОСНОВНЫЕ МАРШРУТЫ ==========
+@app.route('/')
+def index():
+    if 'user_id' in session:
+        return redirect(url_for('feed'))
+    return render_template('index.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = hash_password(request.form['password'])
+        full_name = request.form.get('full_name', '')
+        birthday = request.form.get('birthday', '')
+        gender = request.form.get('gender', '')
+        bio = request.form.get('bio', '')
+        email = request.form.get('email', '')
+        phone = request.form.get('phone', '')
+        
+        avatar_path = None
+        if 'avatar' in request.files:
+            file = request.files['avatar']
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(f"{datetime.now().timestamp()}_{username}_{file.filename}")
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'avatars', filename)
+                file.save(filepath)
+                avatar_path = f'/static/uploads/avatars/{filename}'
+        
+        if add_user(username, password, full_name, birthday, gender, bio, avatar_path, email, phone):
+            return redirect(url_for('login'))
+        else:
+            return render_template('register.html', error='Имя пользователя уже существует')
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = hash_password(request.form['password'])
+        
+        user = get_user(username, password)
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['is_admin'] = user['is_admin']
+            session['is_premium'] = user['is_premium'] if len(user) > 9 else 0
+            update_last_seen(user['id'])
+            
+            # Проверка 2FA
+            user_data = get_user_by_id(user['id'])
+            if user_data and user_data.get('twofa_secret'):
+                return redirect(url_for('twofa_verify'))
+            
+            return redirect(url_for('feed'))
+        else:
+            return render_template('login.html', error='Неверное имя пользователя или пароль')
+    return render_template('login.html')
+
 @app.route('/feed', methods=['GET', 'POST'])
 @login_required
 def feed():

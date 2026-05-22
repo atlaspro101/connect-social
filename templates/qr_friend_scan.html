@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Добавить друга - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(25, 35, 50, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 32px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+        }
+        h2 { color: white; margin-bottom: 8px; }
+        .username { color: rgba(255,255,255,0.6); margin-bottom: 30px; }
+        .add-btn {
+            background: linear-gradient(135deg, #4cd964, #34c759);
+            border: none;
+            padding: 14px 30px;
+            border-radius: 30px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+        .cancel-btn {
+            background: rgba(255, 71, 87, 0.2);
+            border: 1px solid rgba(255, 71, 87, 0.3);
+            padding: 12px 30px;
+            border-radius: 30px;
+            color: #ff4757;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .success { color: #4cd964; margin-top: 16px; }
+        .error { color: #ff4757; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="avatar">{{ friend.username[0].upper() }}</div>
+        <h2>{{ friend.full_name or friend.username }}</h2>
+        <div class="username">@{{ friend.username }}</div>
+        <button class="add-btn" id="addBtn" onclick="addFriend()">➕ Добавить в друзья</button>
+        <button class="cancel-btn" onclick="window.close()">❌ Отмена</button>
+        <div id="message" class="success" style="display:none;"></div>
+    </div>
+
+    <script>
+        const friendId = {{ friend.user_id }};
+        const sessionId = '{{ session_id }}';
+        
+        async function addFriend() {
+            const btn = document.getElementById('addBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> Добавление...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/friend/add/${friendId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                const msgDiv = document.getElementById('message');
+                if (data.success) {
+                    msgDiv.style.display = 'block';
+                    msgDiv.className = 'success';
+                    msgDiv.innerHTML = '✅ Друг добавлен! Перенаправление...';
+                    btn.innerHTML = '✅ Добавлено!';
+                    setTimeout(() => {
+                        window.location.href = '/feed';
+                    }, 1500);
+                } else {
+                    msgDiv.style.display = 'block';
+                    msgDiv.className = 'error';
+                    msgDiv.innerHTML = '❌ ' + (data.error || 'Не удалось добавить');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch(e) {
+                const msgDiv = document.getElementById('message');
+                msgDiv.style.display = 'block';
+                msgDiv.className = 'error';
+                msgDiv.innerHTML = '❌ Ошибка соединения';
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

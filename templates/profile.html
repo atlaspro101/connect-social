@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>{{ profile_user.username }} - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="manifest" href="/static/manifest.json">
     <script>
         function isMobile() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
@@ -68,7 +69,7 @@
     </style>
 </head>
 <body>
-    <!-- Гамбургер меню (ТОЛЬКО для мобильных) -->
+    <!-- Гамбургер меню -->
     <div class="hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()"><span></span></div>
     <div class="hamburger-menu" id="mobileMenu">
         <div class="menu-header">
@@ -83,6 +84,7 @@
             <a href="/profile/{{ session.user_id }}" class="menu-item active">👤 Профиль</a>
             <a href="/chats" class="menu-item">💬 Сообщения</a>
             <a href="#" class="menu-item" id="mobileSearchBtn">🔍 Поиск</a>
+            <a href="/qr/friend" class="menu-item">📱 QR-друг</a>
             {% if is_admin %}<a href="/admin" class="menu-item">👑 Админ панель</a>{% endif %}
             <button class="menu-item" id="mobilePremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
             <a href="/logout" class="menu-item">🚪 Выйти</a>
@@ -90,7 +92,7 @@
     </div>
     <div class="hamburger-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
     
-    <!-- ПК сайдбар (ТОЛЬКО для ПК) -->
+    <!-- ПК сайдбар -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">✨ Connect</div>
@@ -104,6 +106,7 @@
             <a href="/profile/{{ session.user_id }}" class="sidebar-item active">👤 Профиль</a>
             <a href="/chats" class="sidebar-item">💬 Сообщения</a>
             <a href="#" class="sidebar-item" id="pcSearchBtn">🔍 Поиск</a>
+            <a href="/qr/friend" class="sidebar-item">📱 QR-друг</a>
             {% if is_admin %}<a href="/admin" class="sidebar-item">👑 Админ панель</a>{% endif %}
             <button class="sidebar-item" id="pcPremiumBtn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;">⚔️ Connect Premium</button>
             <a href="/logout" class="sidebar-item">🚪 Выйти</a>
@@ -258,6 +261,11 @@
         document.getElementById('mobilePremiumBtn')?.addEventListener('click',openPremiumModal);
         
         document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeLightbox(); closeEditModal(); closeSearchModal(); closePremiumModal(); } });
+        
+        // Push-уведомления
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
     </script>
 </body>
 </html>
