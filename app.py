@@ -1386,6 +1386,18 @@ def chats():
                          is_premium=session.get('is_premium', False),
                          user_avatar=current_user['avatar'] if current_user else None,
                          settings=settings)
+@app.route('/music')
+@login_required
+def music():
+    user = get_user_by_id(session['user_id'])
+    settings = get_user_settings(session['user_id'])
+    return render_template('music.html', 
+                         username=session['username'],
+                         user_id=session['user_id'],
+                         is_admin=session.get('is_admin', False),
+                         is_premium=session.get('is_premium', False),
+                         user_avatar=user['avatar'] if user else None,
+                         settings=settings)
 
 @app.route('/chat/<int:user_id>')
 @login_required
@@ -1820,6 +1832,115 @@ def reset_password(token):
         return redirect(url_for('login'))
     
     return render_template('reset_password.html', token=token)
+
+import requests
+
+# Deezer API прокси (обходит CORS)
+@app.route('/api/deezer/search')
+@login_required
+def deezer_search():
+    """Поиск треков через Deezer"""
+    query = request.args.get('q', '')
+    limit = request.args.get('limit', 30)
+    
+    if not query:
+        return jsonify({'error': 'No query'}), 400
+    
+    try:
+        response = requests.get(
+            f'https://api.deezer.com/search',
+            params={'q': query, 'limit': limit},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            tracks = []
+            for item in data.get('data', []):
+                tracks.append({
+                    'id': item.get('id'),
+                    'title': item.get('title'),
+                    'artist': item.get('artist', {}).get('name', 'Unknown'),
+                    'duration': format_duration(item.get('duration', 0)),
+                    'cover': item.get('album', {}).get('cover_medium'),
+                    'preview': item.get('preview'),
+                    'link': item.get('link')
+                })
+            return jsonify({'success': True, 'tracks': tracks})
+        else:
+            return jsonify({'error': 'Deezer API error'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deezer/chart')
+@login_required
+def deezer_chart():
+    """Получение чарта Deezer"""
+    limit = request.args.get('limit', 30)
+    
+    try:
+        response = requests.get(
+            f'https://api.deezer.com/chart/0/tracks',
+            params={'limit': limit},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            tracks = []
+            for item in data.get('data', []):
+                tracks.append({
+                    'id': item.get('id'),
+                    'title': item.get('title'),
+                    'artist': item.get('artist', {}).get('name', 'Unknown'),
+                    'duration': format_duration(item.get('duration', 0)),
+                    'cover': item.get('album', {}).get('cover_medium'),
+                    'preview': item.get('preview'),
+                    'link': item.get('link')
+                })
+            return jsonify({'success': True, 'tracks': tracks})
+        else:
+            return jsonify({'error': 'Deezer API error'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/deezer/playlist/<playlist_id>')
+@login_required
+def deezer_playlist(playlist_id):
+    """Получение плейлиста по ID"""
+    limit = request.args.get('limit', 30)
+    
+    try:
+        response = requests.get(
+            f'https://api.deezer.com/playlist/{playlist_id}/tracks',
+            params={'limit': limit},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            tracks = []
+            for item in data.get('data', []):
+                tracks.append({
+                    'id': item.get('id'),
+                    'title': item.get('title'),
+                    'artist': item.get('artist', {}).get('name', 'Unknown'),
+                    'duration': format_duration(item.get('duration', 0)),
+                    'cover': item.get('album', {}).get('cover_medium'),
+                    'preview': item.get('preview'),
+                    'link': item.get('link')
+                })
+            return jsonify({'success': True, 'tracks': tracks})
+        else:
+            return jsonify({'error': 'Deezer API error'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def format_duration(seconds):
+    """Конвертирует секунды в MM:SS"""
+    mins = seconds // 60
+    secs = seconds % 60
+    return f"{mins}:{secs:02d}"
 
 # ========== ПОДТВЕРЖДЕНИЕ EMAIL/ТЕЛЕФОНА ==========
 @app.route('/verify/send', methods=['POST'])
