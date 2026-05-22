@@ -25,6 +25,8 @@ app = Flask(__name__)
 app.secret_key = 'connect-secret-key-2026-render'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 sock = Sock(app)
 
@@ -1108,10 +1110,13 @@ def api_qr_login(session_id):
         user_id = qr_sessions[session_id].get('user_id')
         user = get_user_by_id(user_id)
         if user:
+            # Устанавливаем сессию
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['is_admin'] = user['is_admin']
             session['is_premium'] = user['is_premium']
+            session.permanent = True  # Делаем сессию постоянной
+            app.permanent_session_lifetime = timedelta(days=30)  # 30 дней
             update_last_seen(user['id'])
             # Перенаправляем сразу на feed
             return redirect(url_for('feed'))

@@ -139,15 +139,25 @@
         let ws = null;
         let redirectDone = false;
         
-        // Функция для редиректа на feed
-        function redirectToFeed() {
+        // Функция для редиректа на feed с сохранением сессии
+        async function redirectToFeed() {
             if (redirectDone) return;
             redirectDone = true;
+            
             document.getElementById('qrStatus').innerHTML = '✅ Вход подтвержден! Перенаправление...';
             document.getElementById('qrStatus').className = 'status confirmed';
-            setTimeout(() => {
+            
+            // Сначала переходим на /api/qr/login чтобы установить сессию
+            try {
+                const response = await fetch(`/api/qr/login/${sessionId}`);
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    window.location.href = '/feed';
+                }
+            } catch(e) {
                 window.location.href = '/feed';
-            }, 500);
+            }
         }
         
         // WebSocket для реального времени
@@ -196,6 +206,15 @@
             if (checkInterval) clearInterval(checkInterval);
             if (ws) ws.close();
         });
+        
+        // Проверяем, может уже подтверждено?
+        fetch(`/api/qr/status/${sessionId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'confirmed') {
+                    redirectToFeed();
+                }
+            });
     </script>
 </body>
 </html>

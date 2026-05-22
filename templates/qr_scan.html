@@ -73,6 +73,11 @@
             font-size: 14px;
             margin-top: 20px;
         }
+        .auto-login {
+            color: #ffa502;
+            margin-top: 10px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -83,6 +88,7 @@
         <button class="confirm-btn" id="confirmBtn" onclick="confirmLogin()">✅ Подтвердить вход</button>
         <button class="cancel-btn" onclick="window.close()">❌ Отмена</button>
         <div id="successMessage" style="display:none;" class="success-message"></div>
+        <div class="auto-login" id="autoLoginMsg"></div>
         <div class="info-text">
             После подтверждения вы будете автоматически перенаправлены в ленту
         </div>
@@ -101,18 +107,21 @@
                     document.getElementById('userAvatar').textContent = data.user.username[0].toUpperCase();
                     document.getElementById('userName').textContent = data.user.full_name || data.user.username;
                     document.getElementById('userLogin').textContent = '@' + data.user.username;
+                    
+                    // Автоматически подтверждаем вход через 1 секунду
+                    setTimeout(() => {
+                        if (!loginCompleted && !isLoading) {
+                            document.getElementById('autoLoginMsg').innerHTML = '🔄 Автоматический вход...';
+                            confirmLogin();
+                        }
+                    }, 1000);
                 } else {
-                    // Если не залогинены, пробуем получить из localStorage
-                    const savedUser = localStorage.getItem('currentUser');
-                    if (savedUser) {
-                        const user = JSON.parse(savedUser);
-                        document.getElementById('userAvatar').textContent = user.username[0].toUpperCase();
-                        document.getElementById('userName').textContent = user.full_name || user.username;
-                        document.getElementById('userLogin').textContent = '@' + user.username;
-                    }
+                    // Пользователь не залогинен, нужно войти
+                    document.getElementById('autoLoginMsg').innerHTML = '⚠️ Пожалуйста, войдите в аккаунт';
                 }
             } catch(e) {
                 console.log('Error loading user info');
+                document.getElementById('autoLoginMsg').innerHTML = '⚠️ Ошибка загрузки данных пользователя';
             }
         }
 
@@ -167,13 +176,6 @@
         }
 
         loadUserInfo();
-        
-        // Автоматически пробуем подтвердить через API если уже залогинены
-        setTimeout(() => {
-            if (!loginCompleted && !isLoading) {
-                confirmLogin();
-            }
-        }, 1000);
     </script>
 </body>
 </html>
