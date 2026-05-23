@@ -5,11 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Регистрация - Connect</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
+    
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        /* Прелоадер */
+        .preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .preloader.fade-out {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .preloader-content {
+            text-align: center;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .preloader-logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .preloader-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.98); }
         }
 
         body {
@@ -20,6 +67,12 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.loaded {
+            opacity: 1;
         }
 
         .register-container {
@@ -52,7 +105,8 @@
             font-weight: 800;
             background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
         }
 
         .logo p {
@@ -85,12 +139,14 @@
             position: relative;
         }
 
-        .input-icon span {
+        .input-icon svg {
             position: absolute;
             left: 16px;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            stroke: rgba(255, 255, 255, 0.5);
         }
 
         .input-field {
@@ -162,7 +218,6 @@
             margin-right: 12px;
         }
 
-        /* Капча стили */
         .captcha-container {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 12px;
@@ -270,15 +325,23 @@
     </style>
 </head>
 <body>
+    <!-- Прелоадер -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-content">
+            <div class="preloader-logo">Connect</div>
+            <div class="preloader-text">Загрузка...</div>
+        </div>
+    </div>
+
     <div class="register-container">
         <div class="register-card">
             <div class="logo">
-                <h1>✨ Connect</h1>
+                <h1>Connect</h1>
                 <p>Присоединяйтесь к нам</p>
             </div>
 
             <div class="title">
-                <h2>📝 Создать аккаунт</h2>
+                <h2>Создать аккаунт</h2>
                 <p>Заполните форму ниже</p>
             </div>
 
@@ -292,13 +355,19 @@
                 <div class="row-2">
                     <div class="form-group">
                         <div class="input-icon">
-                            <span>👤</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
                             <input type="text" name="username" class="input-field" placeholder="Имя пользователя *" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="input-icon">
-                            <span>🔒</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
                             <input type="password" name="password" class="input-field" placeholder="Пароль *" required>
                         </div>
                     </div>
@@ -307,13 +376,19 @@
                 <div class="row-2">
                     <div class="form-group">
                         <div class="input-icon">
-                            <span>📧</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
                             <input type="email" name="email" class="input-field" placeholder="Email">
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="input-icon">
-                            <span>📱</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
                             <input type="tel" name="phone" class="input-field" placeholder="Телефон">
                         </div>
                     </div>
@@ -322,20 +397,28 @@
                 <div class="row-2">
                     <div class="form-group">
                         <div class="input-icon">
-                            <span>📛</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
                             <input type="text" name="full_name" class="input-field" placeholder="Полное имя">
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="input-icon">
-                            <span>📅</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
                             <input type="date" name="birthday" class="input-field">
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <span style="color: rgba(255,255,255,0.7); font-size: 14px; display: block; margin-bottom: 8px;">⚥ Пол</span>
+                    <span style="color: rgba(255,255,255,0.7); font-size: 14px; display: block; margin-bottom: 8px;">Пол</span>
                     <div class="gender-group">
                         <label class="gender-label">
                             <input type="radio" name="gender" value="male"> Мужской
@@ -350,14 +433,13 @@
                 </div>
 
                 <div class="form-group">
-                    <textarea name="bio" class="input-field" placeholder="📝 О себе" rows="3"></textarea>
+                    <textarea name="bio" class="input-field" placeholder="О себе" rows="3"></textarea>
                 </div>
 
                 <div class="form-group">
                     <input type="file" name="avatar" class="file-input" accept="image/*">
                 </div>
 
-                <!-- Капча -->
                 <div class="form-group">
                     <div class="captcha-container">
                         <div class="captcha-code" id="captchaCode"></div>
@@ -368,7 +450,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-register">Зарегистрироваться 🚀</button>
+                <button type="submit" class="btn-register">Зарегистрироваться</button>
             </form>
 
             <div class="login-link">
@@ -378,6 +460,18 @@
     </div>
 
     <script>
+        // Прелоадер
+        window.addEventListener('load', function() {
+            const preloader = document.getElementById('preloader');
+            document.body.classList.add('loaded');
+            setTimeout(function() {
+                preloader.classList.add('fade-out');
+                setTimeout(function() {
+                    preloader.style.display = 'none';
+                }, 500);
+            }, 300);
+        });
+
         let captchaValue = '';
         
         function generateCaptcha() {
@@ -394,19 +488,17 @@
             generateCaptcha();
         }
         
-        // Проверка капчи при отправке формы
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             const captchaInput = document.getElementById('captchaInput');
             if (captchaInput.value !== captchaValue) {
                 e.preventDefault();
-                alert('❌ Неверный код капчи! Пожалуйста, введите код с картинки.');
+                alert('Неверный код капчи! Пожалуйста, введите код с картинки.');
                 refreshCaptcha();
                 captchaInput.value = '';
                 return false;
             }
         });
         
-        // Генерируем капчу при загрузке страницы
         generateCaptcha();
     </script>
 </body>

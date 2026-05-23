@@ -12,6 +12,7 @@ import requests
 import json
 import secrets
 import shutil
+import base64
 
 # Для QR и WebSocket
 from flask_sock import Sock
@@ -1835,10 +1836,82 @@ def reset_password(token):
 
 import requests
 
-# Deezer API прокси (обходит CORS)
-@app.route('/api/deezer/search')
+# ========== CONNECT MUSIC API (через Deezer) ==========
+
+# Вспомогательная функция для форматирования длительности
+def format_duration(seconds):
+    """Конвертирует секунды в MM:SS"""
+    if not seconds:
+        return '0:00'
+    mins = int(seconds // 60)
+    secs = int(seconds % 60)
+    return f"{mins}:{secs:02d}"
+
+# Демо-треки на случай ошибки API
+def get_demo_tracks():
+    """Демо-треки для теста"""
+    return [
+        {
+            'id': 1,
+            'title': 'Summer Vibes',
+            'artist': 'Connect Artists',
+            'duration': '3:30',
+            'cover': '',
+            'preview': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+            'link': ''
+        },
+        {
+            'id': 2,
+            'title': 'Midnight Dreams',
+            'artist': 'Connect Stars',
+            'duration': '4:15',
+            'cover': '',
+            'preview': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+            'link': ''
+        },
+        {
+            'id': 3,
+            'title': 'Electric Feel',
+            'artist': 'Connect Waves',
+            'duration': '3:45',
+            'cover': '',
+            'preview': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+            'link': ''
+        }
+    ]
+
+
+# ========== ХРАНЕНИЕ ПЛЕЙЛИСТА ПОЛЬЗОВАТЕЛЯ ==========
+def get_user_playlist_file(user_id):
+    """Возвращает путь к файлу плейлиста пользователя"""
+    playlist_dir = os.path.join(BASE_DIR, 'playlists')
+    os.makedirs(playlist_dir, exist_ok=True)
+    return os.path.join(playlist_dir, f'user_{user_id}_playlist.json')
+
+
+def get_user_playlist(user_id):
+    """Загружает плейлист пользователя из файла"""
+    playlist_file = get_user_playlist_file(user_id)
+    if os.path.exists(playlist_file):
+        try:
+            with open(playlist_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+
+def save_user_playlist(user_id, playlist):
+    """Сохраняет плейлист пользователя в файл"""
+    playlist_file = get_user_playlist_file(user_id)
+    with open(playlist_file, 'w', encoding='utf-8') as f:
+        json.dump(playlist, f, ensure_ascii=False, indent=2)
+
+
+# ========== ПОИСК ТРЕКОВ ==========
+@app.route('/api/music/search')
 @login_required
-def deezer_search():
+def music_search():
     """Поиск треков через Deezer"""
     query = request.args.get('q', '')
     limit = request.args.get('limit', 30)
@@ -1848,99 +1921,124 @@ def deezer_search():
     
     try:
         response = requests.get(
-            f'https://api.deezer.com/search',
+            'https://api.deezer.com/search',
             params={'q': query, 'limit': limit},
-            timeout=10
+            timeout=15
         )
         
         if response.status_code == 200:
             data = response.json()
             tracks = []
             for item in data.get('data', []):
-                tracks.append({
-                    'id': item.get('id'),
-                    'title': item.get('title'),
-                    'artist': item.get('artist', {}).get('name', 'Unknown'),
-                    'duration': format_duration(item.get('duration', 0)),
-                    'cover': item.get('album', {}).get('cover_medium'),
-                    'preview': item.get('preview'),
-                    'link': item.get('link')
-                })
+                preview_url = item.get('preview')
+                if preview_url:
+                    tracks.append({
+                        'id': item.get('id'),
+                        'title': item.get('title'),
+                        'artist': item.get('artist', {}).get('name', 'Unknown'),
+                        'duration': format_duration(item.get('duration', 0)),
+                        'cover': item.get('album', {}).get('cover_medium', ''),
+                        'preview': preview_url,
+                        'link': item.get('link', '')
+                    })
             return jsonify({'success': True, 'tracks': tracks})
         else:
-            return jsonify({'error': 'Deezer API error'}), 500
+            return jsonify({'success': True, 'tracks': get_demo_tracks()})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': True, 'tracks': get_demo_tracks()})
 
-@app.route('/api/deezer/chart')
-@login_required
-def deezer_chart():
-    """Получение чарта Deezer"""
-    limit = request.args.get('limit', 30)
-    
-    try:
-        response = requests.get(
-            f'https://api.deezer.com/chart/0/tracks',
-            params={'limit': limit},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            tracks = []
-            for item in data.get('data', []):
-                tracks.append({
-                    'id': item.get('id'),
-                    'title': item.get('title'),
-                    'artist': item.get('artist', {}).get('name', 'Unknown'),
-                    'duration': format_duration(item.get('duration', 0)),
-                    'cover': item.get('album', {}).get('cover_medium'),
-                    'preview': item.get('preview'),
-                    'link': item.get('link')
-                })
-            return jsonify({'success': True, 'tracks': tracks})
-        else:
-            return jsonify({'error': 'Deezer API error'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
-@app.route('/api/deezer/playlist/<playlist_id>')
+# ========== МОИ ЛЮБИМЫЕ (ПЛЕЙЛИСТ) ==========
+@app.route('/api/music/favorites')
 @login_required
-def deezer_playlist(playlist_id):
-    """Получение плейлиста по ID"""
-    limit = request.args.get('limit', 30)
+def music_favorites():
+    """Получение плейлиста пользователя (Мои любимые)"""
+    user_id = session['user_id']
+    playlist = get_user_playlist(user_id)
+    return jsonify({'success': True, 'tracks': playlist})
+
+
+# ========== ДОБАВЛЕНИЕ В "МОИ ЛЮБИМЫЕ" ==========
+@app.route('/api/music/add_favorite', methods=['POST'])
+@login_required
+def music_add_favorite():
+    """Добавляет трек в Мои любимые"""
+    data = request.get_json()
+    track = data.get('track', {})
     
+    if not track or not track.get('id'):
+        return jsonify({'success': False, 'error': 'No track data'}), 400
+    
+    user_id = session['user_id']
+    playlist = get_user_playlist(user_id)
+    
+    # Проверяем, нет ли уже такого трека
+    if not any(t.get('id') == track.get('id') for t in playlist):
+        # Добавляем дату добавления
+        track['added_at'] = datetime.now().isoformat()
+        playlist.insert(0, track)  # Добавляем в начало
+        save_user_playlist(user_id, playlist)
+        return jsonify({'success': True, 'added': True, 'count': len(playlist)})
+    
+    return jsonify({'success': True, 'added': False, 'message': 'Already in favorites'})
+
+
+# ========== УДАЛЕНИЕ ИЗ "МОИ ЛЮБИМЫЕ" ==========
+@app.route('/api/music/remove_favorite', methods=['POST'])
+@login_required
+def music_remove_favorite():
+    """Удаляет трек из Моих любимых"""
+    data = request.get_json()
+    track_id = data.get('track_id')
+    
+    if not track_id:
+        return jsonify({'success': False, 'error': 'No track id'}), 400
+    
+    user_id = session['user_id']
+    playlist = get_user_playlist(user_id)
+    
+    original_length = len(playlist)
+    playlist = [t for t in playlist if t.get('id') != track_id]
+    
+    if len(playlist) != original_length:
+        save_user_playlist(user_id, playlist)
+        return jsonify({'success': True, 'removed': True, 'count': len(playlist)})
+    
+    return jsonify({'success': True, 'removed': False})
+
+
+# ========== ПЛЕЙЛИСТ ПО ID (ДЛЯ КАТЕГОРИЙ) ==========
+@app.route('/api/music/playlist/<playlist_id>')
+@login_required
+def music_playlist(playlist_id):
+    """Получение треков из плейлиста Deezer"""
     try:
         response = requests.get(
             f'https://api.deezer.com/playlist/{playlist_id}/tracks',
-            params={'limit': limit},
-            timeout=10
+            params={'limit': 30},
+            timeout=15
         )
         
         if response.status_code == 200:
             data = response.json()
             tracks = []
             for item in data.get('data', []):
-                tracks.append({
-                    'id': item.get('id'),
-                    'title': item.get('title'),
-                    'artist': item.get('artist', {}).get('name', 'Unknown'),
-                    'duration': format_duration(item.get('duration', 0)),
-                    'cover': item.get('album', {}).get('cover_medium'),
-                    'preview': item.get('preview'),
-                    'link': item.get('link')
-                })
+                preview_url = item.get('preview')
+                if preview_url:
+                    tracks.append({
+                        'id': item.get('id'),
+                        'title': item.get('title'),
+                        'artist': item.get('artist', {}).get('name', 'Unknown'),
+                        'duration': format_duration(item.get('duration', 0)),
+                        'cover': item.get('album', {}).get('cover_medium', ''),
+                        'preview': preview_url,
+                        'link': item.get('link', '')
+                    })
             return jsonify({'success': True, 'tracks': tracks})
         else:
-            return jsonify({'error': 'Deezer API error'}), 500
+            return jsonify({'success': True, 'tracks': get_demo_tracks()})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-def format_duration(seconds):
-    """Конвертирует секунды в MM:SS"""
-    mins = seconds // 60
-    secs = seconds % 60
-    return f"{mins}:{secs:02d}"
+        return jsonify({'success': True, 'tracks': get_demo_tracks()})
 
 # ========== ПОДТВЕРЖДЕНИЕ EMAIL/ТЕЛЕФОНА ==========
 @app.route('/verify/send', methods=['POST'])

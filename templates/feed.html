@@ -12,7 +12,6 @@
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <meta name="theme-color" content="#667eea">
     
-    <!-- Загрузка темы -->
     <script>
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
@@ -64,21 +63,40 @@
             font-size: 14px;
         }
         
-        .push-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 30px;
-            padding: 6px 12px;
-            font-size: 11px;
-            cursor: pointer;
-            color: white;
-            margin-left: 10px;
+        .sidebar-icon-svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
         }
         
-        .push-btn.enabled {
-            background: rgba(76, 217, 100, 0.2);
-            border-color: #4cd964;
-            color: #4cd964;
+        .action-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .action-btn.liked svg {
+            fill: #ff4757;
+            stroke: #ff4757;
+        }
+        
+        .submit-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: white;
+            stroke-width: 2;
+            margin-right: 6px;
+        }
+        
+        .drop-zone svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            margin-right: 8px;
         }
         
         @media (max-width: 768px) {
@@ -98,7 +116,7 @@
     </div>
     <div class="hamburger-menu" id="mobileMenu">
         <div class="menu-header">
-            <div class="menu-logo">✨ Connect</div>
+            <div class="menu-logo">Connect</div>
             <div class="menu-user">
                 {% if user_avatar %}
                     <img src="{{ user_avatar }}" class="menu-avatar">
@@ -116,14 +134,54 @@
             </div>
         </div>
         <div class="menu-nav">
-            <a href="/feed" class="menu-item active">🏠 Лента</a>
-            <a href="/profile/{{ user_id }}" class="menu-item">👤 Профиль</a>
-            <a href="/chats" class="menu-item">💬 Сообщения</a>
-            <a href="#" class="menu-item" id="mobileSearchBtn">🔍 Поиск</a>
-            <a href="/qr/friend" class="menu-item">📱 QR-друг</a>
-            {% if is_admin %}<a href="/admin" class="menu-item">👑 Админ панель</a>{% endif %}
-            <button class="menu-item" id="mobilePremiumBtn">⚔️ Connect Premium</button>
-            <a href="/logout" class="menu-item">🚪 Выйти</a>
+            <a href="/feed" class="menu-item active">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-5v-7H9v7H5a2 2 0 0 1-2-2z"/></svg>
+                <span>Лента</span>
+            </a>
+            <a href="/profile/{{ user_id }}" class="menu-item">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Профиль</span>
+            </a>
+            <a href="/chats" class="menu-item">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>Сообщения</span>
+                {% if unread_count > 0 %}
+                    <span class="sidebar-badge">{{ unread_count }}</span>
+                {% endif %}
+            </a>
+            <a href="/music" class="menu-item">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                <span>Музыка</span>
+            </a>
+            <a href="#" class="menu-item" id="mobileSearchBtn">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Поиск</span>
+            </a>
+            <a href="/qr/friend" class="menu-item">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                <span>QR-друг</span>
+            </a>
+            {% if is_admin %}
+                <a href="/admin" class="menu-item">
+                    <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    <span>Админ панель</span>
+                </a>
+            {% endif %}
+            <button class="menu-item" id="mobilePremiumBtn">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>
+                <span>Premium</span>
+            </button>
+            <button class="menu-item theme-toggle-btn" onclick="toggleTheme()">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" class="theme-icon-sun"/>
+                    <circle cx="12" cy="12" r="5" class="theme-icon-moon"/>
+                </svg>
+                <span>Тема</span>
+            </button>
+            <a href="/logout" class="menu-item">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Выйти</span>
+            </a>
         </div>
     </div>
     <div class="hamburger-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
@@ -131,7 +189,7 @@
     <!-- ПК сайдбар -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-logo">✨ Connect</div>
+            <div class="sidebar-logo">Connect</div>
             <div class="sidebar-user">
                 {% if user_avatar %}
                     <img src="{{ user_avatar }}" class="sidebar-avatar">
@@ -150,44 +208,50 @@
         </div>
         <div class="sidebar-nav">
             <a href="/feed" class="sidebar-item active">
-                <span class="sidebar-icon">🏠</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-5v-7H9v7H5a2 2 0 0 1-2-2z"/></svg>
                 <span class="sidebar-text">Лента</span>
             </a>
             <a href="/profile/{{ user_id }}" class="sidebar-item">
-                <span class="sidebar-icon">👤</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <span class="sidebar-text">Профиль</span>
             </a>
             <a href="/chats" class="sidebar-item">
-                <span class="sidebar-icon">💬</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 <span class="sidebar-text">Сообщения</span>
                 {% if unread_count > 0 %}
                     <span class="sidebar-badge">{{ unread_count }}</span>
                 {% endif %}
             </a>
+            <a href="/music" class="sidebar-item">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                <span class="sidebar-text">Музыка</span>
+            </a>
             <a href="#" class="sidebar-item" id="pcSearchBtn">
-                <span class="sidebar-icon">🔍</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <span class="sidebar-text">Поиск</span>
             </a>
             <a href="/qr/friend" class="sidebar-item">
-                <span class="sidebar-icon">📱</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                 <span class="sidebar-text">QR-друг</span>
             </a>
             {% if is_admin %}
                 <a href="/admin" class="sidebar-item">
-                    <span class="sidebar-icon">👑</span>
+                    <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                     <span class="sidebar-text">Админ панель</span>
                 </a>
             {% endif %}
             <button class="sidebar-item" id="pcPremiumBtn">
-                <span class="sidebar-icon">⚔️</span>
-                <span class="sidebar-text">Connect Premium</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>
+                <span class="sidebar-text">Premium</span>
             </button>
-            <button class="sidebar-item" onclick="toggleTheme()">
-                <span class="sidebar-icon">🌓</span>
+            <button class="sidebar-item theme-toggle-btn" onclick="toggleTheme()">
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>
+                </svg>
                 <span class="sidebar-text">Тема</span>
             </button>
             <a href="/logout" class="sidebar-item">
-                <span class="sidebar-icon">🚪</span>
+                <svg class="sidebar-icon-svg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 <span class="sidebar-text">Выйти</span>
             </a>
         </div>
@@ -201,30 +265,29 @@
     
     <div class="main-content" id="mainContent">
         <div class="feed-container">
-            <!-- Вкладки -->
             <div class="feed-tabs">
                 <button class="feed-tab active" onclick="switchFeedTab('for-you')">Для вас</button>
                 <button class="feed-tab" onclick="switchFeedTab('subscriptions')">Подписки</button>
             </div>
             
-            <!-- Форма создания поста -->
             <div class="create-post">
                 <form method="POST" enctype="multipart/form-data" id="postForm">
                     <textarea name="content" placeholder="Что нового?" rows="3" id="postContent"></textarea>
                     
                     <div class="drop-zone" id="dropZone" onclick="document.getElementById('mediaInput').click()">
-                        <label>📎 Перетащите файл сюда или нажмите для выбора</label>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                        <label>Перетащите файл сюда или нажмите для выбора</label>
                         <input type="file" name="media" accept="image/*,image/gif,audio/*" id="mediaInput" multiple>
                         <div id="filePreview" class="file-preview"></div>
                     </div>
                     
                     <button type="submit" class="submit-btn">
-                        <span>✨ Опубликовать</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Опубликовать
                     </button>
                 </form>
             </div>
             
-            <!-- Лента "Для вас" -->
             <div id="forYouTab">
                 {% for post in posts %}
                 <div class="post-card" data-post-id="{{ post.id }}">
@@ -246,15 +309,12 @@
                             <div class="post-time">{{ post.created_at|format_time }}</div>
                         </div>
                     </div>
-                    
                     <div class="post-content">{{ post.content }}</div>
-                    
                     {% if post.media_path and (post.media_type == 'image' or post.media_type == 'gif') %}
                         <div class="post-media" onclick="openLightbox('{{ post.media_path }}')">
                             <img src="{{ post.media_path }}" alt="Post media" loading="lazy">
                         </div>
                     {% endif %}
-                    
                     {% if post.media_path and post.media_type == 'audio' %}
                         <div class="audio-player-container">
                             <audio controls>
@@ -262,33 +322,33 @@
                             </audio>
                         </div>
                     {% endif %}
-                    
                     <div class="post-actions">
-                        <button class="action-btn like-btn {% if post.id in liked_posts %}liked{% endif %}" 
-                                onclick="toggleLike(this, {{ post.id }})">
-                            ❤️ <span class="likes-count">{{ post.likes }}</span>
+                        <button class="action-btn like-btn {% if post.id in liked_posts %}liked{% endif %}" onclick="toggleLike(this, {{ post.id }})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            <span class="likes-count">{{ post.likes }}</span>
                         </button>
                         <a href="/post/{{ post.id }}" class="action-btn">
-                            💬 Комментировать
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            Комментировать
                         </a>
                         <button class="action-btn" onclick="sharePost({{ post.id }})">
-                            📤 Поделиться
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                            Поделиться
                         </button>
                     </div>
                 </div>
                 {% else %}
                 <div class="glass-card" style="text-align: center; padding: 60px;">
-                    <div style="font-size: 64px; margin-bottom: 16px;">📝</div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64" style="margin-bottom: 16px;"><path d="M20 12v10H4V12M2 8h20M16 8V4H8v4"/></svg>
                     <h3 style="margin-bottom: 8px;">Нет постов</h3>
                     <p style="color: var(--text-muted);">Будьте первым, кто что-то опубликует!</p>
                 </div>
                 {% endfor %}
             </div>
             
-            <!-- Лента подписок (заглушка) -->
             <div id="subscriptionsTab" style="display: none;">
                 <div class="glass-card" style="text-align: center; padding: 60px;">
-                    <div style="font-size: 64px; margin-bottom: 16px;">👥</div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64" style="margin-bottom: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     <h3 style="margin-bottom: 8px;">Посты подписок</h3>
                     <p style="color: var(--text-muted);">Здесь будут посты пользователей, на которых вы подписаны</p>
                 </div>
@@ -296,34 +356,31 @@
         </div>
     </div>
     
-    <!-- Модальное окно Premium -->
     <div id="premiumModal" class="modal">
         <div class="modal-content" style="text-align: center;">
-            <div style="font-size: 64px; margin-bottom: 16px;">⚔️</div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64" style="margin-bottom: 16px;"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>
             <h2 style="margin-bottom: 8px;">Connect Premium</h2>
             <p style="margin: 16px 0; color: var(--text-secondary);">Купите Premium и получите:</p>
             <ul style="text-align: left; margin: 16px 0; padding-left: 20px; color: var(--text-secondary);">
-                <li>✨ Красивое фиолетово-белое переливание ника</li>
-                <li>⚔️ Иконка меча рядом с ником</li>
-                <li>🔥 Приоритет в поддержке</li>
-                <li>💎 Эксклюзивные эмодзи в комментариях</li>
+                <li>Красивое фиолетово-белое переливание ника</li>
+                <li>Иконка меча рядом с ником</li>
+                <li>Приоритет в поддержке</li>
+                <li>Эксклюзивные возможности</li>
             </ul>
             <div style="font-size: 36px; font-weight: bold; margin: 20px 0; color: #9b59b6;">199 ₽</div>
-            <button class="modal-save" onclick="buyPremium()">💎 Купить Premium</button>
+            <button class="modal-save" onclick="buyPremium()">Купить Premium</button>
             <button class="modal-cancel" onclick="closePremiumModal()" style="margin-top: 10px;">Отмена</button>
         </div>
     </div>
     
-    <!-- Лайтбокс для изображений -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
         <span class="lightbox-close">&times;</span>
         <img id="lightbox-img" src="">
     </div>
     
-    <!-- Модальное окно поиска -->
     <div id="searchModal" class="modal">
         <div class="modal-content">
-            <h2>🔍 Поиск пользователей</h2>
+            <h2>Поиск пользователей</h2>
             <input type="text" id="searchQuery" placeholder="Введите имя пользователя..." onkeyup="searchUsersModal()">
             <div id="searchResultsModal"></div>
             <button class="modal-cancel" onclick="closeSearchModal()">Закрыть</button>
@@ -331,7 +388,6 @@
     </div>
     
     <script>
-        // Переключение темы
         function toggleTheme() {
             const current = document.documentElement.getAttribute('data-theme');
             const newTheme = current === 'dark' ? 'light' : 'dark';
@@ -339,29 +395,24 @@
             localStorage.setItem('theme', newTheme);
         }
         
-        // Переключение сайдбара
         function toggleSidebar() {
             if (window.innerWidth > 768) {
-                const sidebar = document.getElementById('sidebar');
-                const mainContent = document.getElementById('mainContent');
-                const toggle = document.getElementById('sidebarToggle');
-                
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('expanded');
-                toggle.classList.toggle('collapsed');
-                
-                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                const s = document.getElementById('sidebar');
+                const m = document.getElementById('mainContent');
+                const t = document.getElementById('sidebarToggle');
+                s.classList.toggle('collapsed');
+                m.classList.toggle('expanded');
+                t.classList.toggle('collapsed');
+                localStorage.setItem('sidebarCollapsed', s.classList.contains('collapsed'));
             }
         }
         
-        // Загрузка состояния сайдбара
         if (window.innerWidth > 768 && localStorage.getItem('sidebarCollapsed') === 'true') {
             document.getElementById('sidebar').classList.add('collapsed');
             document.getElementById('mainContent').classList.add('expanded');
             document.getElementById('sidebarToggle').classList.add('collapsed');
         }
         
-        // Мобильное меню
         function toggleMobileMenu() {
             if (window.innerWidth <= 768) {
                 document.getElementById('mobileMenu').classList.toggle('open');
@@ -378,11 +429,9 @@
             }
         }
         
-        // Переключение вкладок ленты
         function switchFeedTab(tab) {
             document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
-            
             if (tab === 'for-you') {
                 document.getElementById('forYouTab').style.display = 'block';
                 document.getElementById('subscriptionsTab').style.display = 'none';
@@ -392,27 +441,21 @@
             }
         }
         
-        // Лайк поста
         function toggleLike(btn, postId) {
             fetch(`/like_post/${postId}`, { method: 'POST' })
                 .then(r => r.json())
                 .then(data => {
                     btn.querySelector('.likes-count').textContent = data.likes_count;
-                    if (data.liked) {
-                        btn.classList.add('liked');
-                    } else {
-                        btn.classList.remove('liked');
-                    }
+                    if (data.liked) btn.classList.add('liked');
+                    else btn.classList.remove('liked');
                 });
         }
         
-        // Поделиться постом
         function sharePost(postId) {
             navigator.clipboard.writeText(window.location.origin + '/post/' + postId);
-            alert('✅ Ссылка скопирована!');
+            alert('Ссылка скопирована!');
         }
         
-        // Лайтбокс
         function openLightbox(src) {
             document.getElementById('lightbox-img').src = src;
             document.getElementById('lightbox').classList.add('active');
@@ -422,7 +465,6 @@
             document.getElementById('lightbox').classList.remove('active');
         }
         
-        // Модальные окна
         function openSearchModal() {
             document.getElementById('searchModal').style.display = 'flex';
         }
@@ -449,7 +491,6 @@
                 });
         }
         
-        // Premium
         function openPremiumModal() {
             document.getElementById('premiumModal').classList.add('active');
         }
@@ -463,15 +504,14 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        alert('⚔️ Поздравляем! Вы стали Premium пользователем!');
+                        alert('Поздравляем! Вы стали Premium пользователем!');
                         location.reload();
                     } else {
-                        alert('❌ Ошибка при покупке Premium');
+                        alert('Ошибка при покупке Premium');
                     }
                 });
         }
         
-        // Drag and Drop для загрузки файлов
         const dropZone = document.getElementById('dropZone');
         const mediaInput = document.getElementById('mediaInput');
         const filePreview = document.getElementById('filePreview');
@@ -514,26 +554,16 @@
                 const reader = new FileReader();
                 const previewItem = document.createElement('div');
                 previewItem.className = 'file-preview-item';
-                
                 reader.onload = function(e) {
                     if (file.type.startsWith('image/')) {
-                        previewItem.innerHTML = `
-                            <img src="${e.target.result}">
-                            <div class="remove-file" onclick="removeFile(${index})">×</div>
-                        `;
+                        previewItem.innerHTML = `<img src="${e.target.result}"><div class="remove-file" onclick="removeFile(${index})">×</div>`;
                     } else {
-                        previewItem.innerHTML = `
-                            <div style="width:80px;height:80px;background:rgba(102,126,234,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                                📁
-                                <div class="remove-file" onclick="removeFile(${index})">×</div>
-                            </div>
-                        `;
+                        previewItem.innerHTML = `<div style="width:80px;height:80px;background:rgba(102,126,234,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="30" height="30" stroke="white" fill="none"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div class="remove-file" onclick="removeFile(${index})">×</div></div>`;
                     }
                 };
                 reader.readAsDataURL(file);
                 filePreview.appendChild(previewItem);
             });
-            
             const dt = new DataTransfer();
             selectedFiles.forEach(f => dt.items.add(f));
             mediaInput.files = dt.files;
@@ -547,15 +577,13 @@
             updateFilePreview();
         }
         
-        // Валидация формы поста
         document.getElementById('postForm').addEventListener('submit', function(e) {
             if (!document.getElementById('postContent').value.trim() && selectedFiles.length === 0) {
                 e.preventDefault();
-                alert('📝 Напишите что-нибудь или прикрепите файл!');
+                alert('Напишите что-нибудь или прикрепите файл!');
             }
         });
         
-        // Автообновление лайков
         let autoRefreshInterval = setInterval(() => {
             fetch('/feed?ajax=1')
                 .then(response => response.text())
@@ -563,7 +591,6 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
                     const newPosts = doc.querySelectorAll('.post-card');
-                    
                     document.querySelectorAll('.post-card').forEach((post, index) => {
                         if (newPosts[index]) {
                             const newLikes = newPosts[index].querySelector('.likes-count')?.textContent;
@@ -573,16 +600,13 @@
                             }
                         }
                     });
-                })
-                .catch(() => {});
+                }).catch(() => {});
         }, 3000);
         
-        // Очистка интервала при уходе
         window.addEventListener('beforeunload', () => {
             if (autoRefreshInterval) clearInterval(autoRefreshInterval);
         });
         
-        // Обработчики кнопок
         document.getElementById('pcSearchBtn')?.addEventListener('click', (e) => {
             e.preventDefault();
             openSearchModal();
@@ -597,7 +621,6 @@
         document.getElementById('pcPremiumBtn')?.addEventListener('click', openPremiumModal);
         document.getElementById('mobilePremiumBtn')?.addEventListener('click', openPremiumModal);
         
-        // Закрытие модалок по Escape
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
                 closeLightbox();
@@ -606,7 +629,6 @@
             }
         });
         
-        // Регистрация Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
         }
