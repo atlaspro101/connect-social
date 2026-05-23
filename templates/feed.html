@@ -164,6 +164,17 @@
             margin-right: 8px;
         }
         
+        /* Анимация обновления лайков */
+        @keyframes likePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: #ff4757; }
+            100% { transform: scale(1); }
+        }
+        
+        .likes-count-updated {
+            animation: likePulse 0.3s ease;
+        }
+        
         @media (max-width: 768px) {
             .sidebar, .sidebar-toggle { display: none !important; }
             .hamburger-btn { display: flex !important; }
@@ -325,7 +336,6 @@
         function toggleMobileMenu(){ if(window.innerWidth<=768){ document.getElementById('mobileMenu').classList.toggle('open'); document.getElementById('menuOverlay').classList.toggle('active'); document.getElementById('hamburgerBtn').classList.toggle('open'); } }
         function closeMobileMenu(){ if(window.innerWidth<=768){ document.getElementById('mobileMenu').classList.remove('open'); document.getElementById('menuOverlay').classList.remove('active'); document.getElementById('hamburgerBtn').classList.remove('open'); } }
         function switchFeedTab(tab){ document.querySelectorAll('.feed-tab').forEach(t=>t.classList.remove('active')); event.target.classList.add('active'); if(tab==='for-you'){ document.getElementById('forYouTab').style.display='block'; document.getElementById('subscriptionsTab').style.display='none'; }else{ document.getElementById('forYouTab').style.display='none'; document.getElementById('subscriptionsTab').style.display='block'; } }
-        function toggleLike(btn,postId){ fetch(`/like_post/${postId}`,{method:'POST'}).then(r=>r.json()).then(data=>{ btn.querySelector('.likes-count').textContent=data.likes_count; if(data.liked)btn.classList.add('liked'); else btn.classList.remove('liked'); }); }
         function sharePost(postId){ navigator.clipboard.writeText(window.location.origin+'/post/'+postId); alert('Ссылка скопирована!'); }
         function openLightbox(src){ document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('active'); }
         function closeLightbox(){ document.getElementById('lightbox').classList.remove('active'); }
@@ -336,7 +346,63 @@
         function closePremiumModal(){ document.getElementById('premiumModal').classList.remove('active'); }
         function buyPremium(){ fetch('/buy_premium',{method:'POST'}).then(r=>r.json()).then(data=>{ if(data.success){ alert('Поздравляем! Вы стали Premium!'); location.reload(); }else{ alert('Ошибка'); } }); }
         
-        // Обработка упоминаний в тексте
+        // ========== ЛАЙКИ С АНИМАЦИЕЙ ==========
+        async function toggleLike(btn, postId) {
+            try {
+                const response = await fetch(`/like_post/${postId}`, { method: 'POST' });
+                const data = await response.json();
+                const likesSpan = btn.querySelector('.likes-count');
+                const oldValue = parseInt(likesSpan.textContent);
+                likesSpan.textContent = data.likes_count;
+                
+                // Анимация
+                likesSpan.classList.add('likes-count-updated');
+                setTimeout(() => likesSpan.classList.remove('likes-count-updated'), 300);
+                
+                if (data.liked) {
+                    btn.classList.add('liked');
+                } else {
+                    btn.classList.remove('liked');
+                }
+            } catch(e) { console.error('Like error:', e); }
+        }
+        
+        // ========== АВТООБНОВЛЕНИЕ ЛАЙКОВ (КАЖДЫЕ 3 СЕКУНДЫ) ==========
+        let autoRefreshInterval = null;
+        
+        async function autoRefreshLikes() {
+            try {
+                const response = await fetch('/feed?ajax=1');
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newPosts = doc.querySelectorAll('.post-card');
+                
+                document.querySelectorAll('.post-card').forEach((post, index) => {
+                    if (newPosts[index]) {
+                        const newLikes = newPosts[index].querySelector('.likes-count')?.textContent;
+                        const currentLikes = post.querySelector('.likes-count');
+                        if (currentLikes && newLikes && currentLikes.textContent !== newLikes) {
+                            const oldValue = parseInt(currentLikes.textContent);
+                            currentLikes.textContent = newLikes;
+                            // Анимация при автообновлении
+                            currentLikes.classList.add('likes-count-updated');
+                            setTimeout(() => currentLikes.classList.remove('likes-count-updated'), 300);
+                        }
+                    }
+                });
+            } catch(e) { console.error('Auto refresh error:', e); }
+        }
+        
+        // Запускаем автообновление каждые 3 секунды
+        autoRefreshInterval = setInterval(autoRefreshLikes, 3000);
+        
+        // Очищаем интервал при уходе со страницы
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        });
+        
+        // ========== ОБРАБОТКА УПОМИНАНИЙ ==========
         function processMentions() {
             document.querySelectorAll('.post-content, .comment-content').forEach(el => {
                 if (!el.hasAttribute('data-processed')) {
@@ -348,6 +414,9 @@
             });
         }
         
+        // Запускаем обработку упоминаний каждую секунду
+        setInterval(processMentions, 1000);
+        
         // ========== СТОРИС ==========
         async function loadStoriesBar() {
             try {
@@ -355,16 +424,16 @@
                 const data = await response.json();
                 const container = document.getElementById('friendsStories');
                 container.innerHTML = '';
-                if (data.success && data.stories) {
+                if (data.success && data.stories && data.stories.length > 0) {
                     data.stories.forEach(user => {
                         const div = document.createElement('div');
                         div.className = 'story-circle';
-                        div.onclick = () => { sessionStorage.setItem('storiesData', JSON.stringify(data.stories)); window.location.href = `/stories?user=${user.user.id}`; };
-                        div.innerHTML = `<img src="${user.user.avatar || '/static/default-avatar.png'}" class="story-avatar"><span>${user.user.username}</span>`;
+                        div.onclick = () => { window.location.href = `/stories?user=${user.user.id}`; };
+                        div.innerHTML = `<img src="${user.user.avatar || '/static/default-avatar.png'}" class="story-avatar" onerror="this.src='/static/default-avatar.png'"><span>${user.user.username}</span>`;
                         container.appendChild(div);
                     });
                 }
-            } catch(e) { console.log('Stories error'); }
+            } catch(e) { console.log('Stories load error:', e); }
         }
         
         function openStoryUpload() {
@@ -373,13 +442,23 @@
             input.accept = 'image/*,video/*';
             input.onchange = async (e) => {
                 const file = e.target.files[0];
+                if (!file) return;
                 const formData = new FormData();
                 formData.append('media', file);
                 const text = prompt('Текст для сторис (необязательно):');
                 if (text) formData.append('text', text);
-                await fetch('/api/stories/upload', { method: 'POST', body: formData });
-                alert('Сторис опубликована!');
-                loadStoriesBar();
+                try {
+                    const response = await fetch('/api/stories/upload', { method: 'POST', body: formData });
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Сторис опубликована!');
+                        loadStoriesBar();
+                    } else {
+                        alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                    }
+                } catch(err) {
+                    alert('Ошибка загрузки сторис');
+                }
             };
             input.click();
         }
@@ -389,16 +468,43 @@
         const mediaInput = document.getElementById('mediaInput');
         const filePreview = document.getElementById('filePreview');
         let selectedFiles = [];
+        
         ['dragenter','dragover','dragleave','drop'].forEach(n=>{ dropZone.addEventListener(n,preventDefaults,false); document.body.addEventListener(n,preventDefaults,false); });
         function preventDefaults(e){ e.preventDefault(); e.stopPropagation(); }
         ['dragenter','dragover'].forEach(n=>dropZone.addEventListener(n,()=>dropZone.classList.add('drag-over'),false));
         ['dragleave','drop'].forEach(n=>dropZone.addEventListener(n,()=>dropZone.classList.remove('drag-over'),false));
         dropZone.addEventListener('drop',e=>{ handleFiles(e.dataTransfer.files); },false);
         mediaInput.addEventListener('change',function(){ handleFiles(this.files); });
+        
         function handleFiles(files){ selectedFiles=Array.from(files); updateFilePreview(); }
-        function updateFilePreview(){ filePreview.innerHTML=''; selectedFiles.forEach((file,index)=>{ const reader=new FileReader(); const previewItem=document.createElement('div'); previewItem.className='file-preview-item'; reader.onload=function(e){ if(file.type.startsWith('image/')){ previewItem.innerHTML=`<img src="${e.target.result}"><div class="remove-file" onclick="removeFile(${index})">×</div>`; }else{ previewItem.innerHTML=`<div style="width:80px;height:80px;background:rgba(102,126,234,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="30" height="30" stroke="white" fill="none"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div class="remove-file" onclick="removeFile(${index})">×</div></div>`; } }; reader.readAsDataURL(file); filePreview.appendChild(previewItem); }); const dt=new DataTransfer(); selectedFiles.forEach(f=>dt.items.add(f)); mediaInput.files=dt.files; }
+        function updateFilePreview(){ 
+            filePreview.innerHTML=''; 
+            selectedFiles.forEach((file,index)=>{ 
+                const reader=new FileReader(); 
+                const previewItem=document.createElement('div'); 
+                previewItem.className='file-preview-item'; 
+                reader.onload=function(e){ 
+                    if(file.type.startsWith('image/')){ 
+                        previewItem.innerHTML=`<img src="${e.target.result}"><div class="remove-file" onclick="removeFile(${index})">×</div>`; 
+                    }else{ 
+                        previewItem.innerHTML=`<div style="width:80px;height:80px;background:rgba(102,126,234,0.3);border-radius:8px;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="30" height="30" stroke="white" fill="none"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><div class="remove-file" onclick="removeFile(${index})">×</div></div>`; 
+                    } 
+                }; 
+                reader.readAsDataURL(file); 
+                filePreview.appendChild(previewItem); 
+            }); 
+            const dt=new DataTransfer(); 
+            selectedFiles.forEach(f=>dt.items.add(f)); 
+            mediaInput.files=dt.files; 
+        }
         function removeFile(index){ selectedFiles.splice(index,1); const dt=new DataTransfer(); selectedFiles.forEach(f=>dt.items.add(f)); mediaInput.files=dt.files; updateFilePreview(); }
-        document.getElementById('postForm').addEventListener('submit',function(e){ if(!document.getElementById('postContent').value.trim()&&selectedFiles.length===0){ e.preventDefault(); alert('Напишите что-нибудь или прикрепите файл!'); } });
+        
+        document.getElementById('postForm').addEventListener('submit',function(e){ 
+            if(!document.getElementById('postContent').value.trim()&&selectedFiles.length===0){ 
+                e.preventDefault(); 
+                alert('Напишите что-нибудь или прикрепите файл!'); 
+            } 
+        });
         
         // ========== ИНИЦИАЛИЗАЦИЯ ==========
         document.getElementById('pcSearchBtn')?.addEventListener('click',(e)=>{ e.preventDefault(); openSearchModal(); });
@@ -406,8 +512,14 @@
         document.getElementById('pcPremiumBtn')?.addEventListener('click',openPremiumModal);
         document.getElementById('mobilePremiumBtn')?.addEventListener('click',openPremiumModal);
         document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeLightbox(); closeSearchModal(); closePremiumModal(); } });
-        setInterval(() => { processMentions(); }, 1000);
+        
+        // Загрузка сторис
         loadStoriesBar();
+        
+        // Обработка упоминаний при загрузке
+        setTimeout(processMentions, 500);
+        
+        // Service Worker
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     </script>
 </body>

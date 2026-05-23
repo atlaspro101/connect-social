@@ -167,6 +167,60 @@ def init_db():
             UNIQUE(user_id, message_id)
         )''')
         
+        # ========== НОВЫЕ ТАБЛИЦЫ ==========
+        
+        # Таблица уведомлений (для упоминаний)
+        c.execute('''CREATE TABLE notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            type TEXT,
+            source_id INTEGER,
+            source_author TEXT,
+            content TEXT,
+            created_at TIMESTAMP,
+            is_read INTEGER DEFAULT 0
+        )''')
+        
+        # Таблица массовых уведомлений
+        c.execute('''CREATE TABLE mass_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            message TEXT,
+            sent_by TEXT,
+            created_at TIMESTAMP
+        )''')
+        
+        # Таблица сторис
+        c.execute('''CREATE TABLE stories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            media_path TEXT,
+            media_type TEXT,
+            text TEXT,
+            created_at TIMESTAMP,
+            expires_at TIMESTAMP,
+            views INTEGER DEFAULT 0
+        )''')
+        
+        # Таблица просмотров сторис
+        c.execute('''CREATE TABLE story_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            story_id INTEGER,
+            user_id INTEGER,
+            viewed_at TIMESTAMP,
+            UNIQUE(story_id, user_id)
+        )''')
+        
+        # Таблица реакций на сторис
+        c.execute('''CREATE TABLE story_reactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            story_id INTEGER,
+            user_id INTEGER,
+            reaction TEXT,
+            created_at TIMESTAMP,
+            UNIQUE(story_id, user_id)
+        )''')
+        
         # Вставляем стандартные достижения
         achievements = [
             ('Первый пост', 'Опубликуйте свой первый пост', '📝', 1),
@@ -887,3 +941,126 @@ def search_messages(chat_id, query, user_id):
         return [dict(msg) for msg in messages]
     except:
         return []
+
+# ========== ФУНКЦИИ ДЛЯ УПОМИНАНИЙ ==========
+def get_mentions(user_id):
+    """Получить все упоминания пользователя"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            SELECT * FROM notifications 
+            WHERE user_id = ? AND type = 'mention'
+            ORDER BY created_at DESC
+            LIMIT 50
+        ''', (user_id,))
+        notifications = c.fetchall()
+        conn.close()
+        return [dict(n) for n in notifications]
+    except:
+        return []
+
+def mark_mentions_read(user_id):
+    """Отметить упоминания как прочитанные"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            UPDATE notifications SET is_read = 1 
+            WHERE user_id = ? AND type = 'mention'
+        ''', (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+# ========== ФУНКЦИИ ДЛЯ СТОРИС ==========
+def get_active_stories(user_id):
+    """Получить активные истории для пользователя"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        
+        # Получаем подписки пользователя
+        c.execute("SELECT following_id FROM followers WHERE follower_id = ?", (user_id,))
+        following = [row[0] for row in c.fetchall()]
+        following.append(user_id)
+        
+        if not following:
+            following = [user_id]
+        
+        placeholders = ','.join('?' * len(following))
+        query = f'''
+            SELECT s.*, u.username, u.avatar, u.full_name
+            FROM stories s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.user_id IN ({placeholders}) AND s.expires_at > ?
+            ORDER BY s.created_at DESC
+        '''
+        c.execute(query, following + [datetime.now()])
+        
+        stories = c.fetchall()
+        conn.close()
+        return [dict(s) for s in stories]
+    except:
+        return []
+
+def add_story(user_id, media_path, media_type, text):
+    """Добавить новую историю"""
+    try:
+        expires_at = datetime.now() + timedelta(hours=24)
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO stories (user_id, media_path, media_type, text, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (user_id, media_path, media_type, text, datetime.now(), expires_at))
+        story_id = c.lastrowid
+        conn.commit()
+        conn.close()
+        return story_id
+    except:
+        return None
+
+def view_story(story_id, user_id):
+    """Отметить просмотр истории"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR IGNORE INTO story_views (story_id, user_id, viewed_at)
+            VALUES (?, ?, ?)
+        ''', (story_id, user_id, datetime.now()))
+        c.execute('UPDATE stories SET views = views + 1 WHERE id = ?', (story_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def react_to_story(story_id, user_id, reaction):
+    """Добавить реакцию на историю"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR REPLACE INTO story_reactions (story_id, user_id, reaction, created_at)
+            VALUES (?, ?, ?, ?)
+        ''', (story_id, user_id, reaction, datetime.now()))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def delete_expired_stories():
+    """Удалить истекшие истории"""
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("DELETE FROM stories WHERE expires_at < ?", (datetime.now(),))
+        conn.commit()
+        conn.close()
+    except:
+        pass
