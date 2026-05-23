@@ -1577,3 +1577,19 @@ body::before {
         border: 1px solid #ddd;
     }
 }
+/* Упоминания */
+.mention {
+    color: #667eea;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.mention:hover {
+    background: rgba(102, 126, 234, 0.2);
+    text-decoration: underline;
+}

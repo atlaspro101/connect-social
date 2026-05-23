@@ -1,101 +1,98 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Пост - Connect</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Connect">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <meta name="theme-color" content="#667eea">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Пост - Connect</title>
-    <link rel="icon" type="image/png" href="/static/favicon.png">
+    
     <script>
-        function isMobile() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
-                   || window.innerWidth <= 768;
-        }
-        if (isMobile()) {
-            document.write('<link rel="stylesheet" href="/static/css/mobile.css">');
-        } else {
-            document.write('<link rel="stylesheet" href="/static/css/style.css">');
-        }
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        function isMobile() { return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768; }
     </script>
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    
     <style>
-        .post-detail-container { max-width: 680px; margin: 80px auto 40px; padding: 20px; }
-        .post-card { background: rgba(20,30,45,0.6); backdrop-filter: blur(12px); border-radius: 20px; padding: 20px; margin-bottom: 24px; }
-        .post-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-        .post-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
-        .post-author { font-weight: bold; font-size: 16px; }
-        .post-date { font-size: 12px; color: rgba(255,255,255,0.5); }
-        .post-content { font-size: 16px; line-height: 1.5; margin-bottom: 16px; }
-        .post-media img { width: 100%; border-radius: 12px; max-height: 400px; object-fit: cover; margin-bottom: 16px; }
-        .post-stats { display: flex; gap: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); }
-        .comments-section { margin-top: 24px; }
-        .comment { background: rgba(20,30,45,0.4); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
-        .comment-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .comment-avatar { width: 36px; height: 36px; border-radius: 50%; }
-        .comment-author { font-weight: 600; font-size: 14px; }
-        .comment-time { font-size: 11px; color: rgba(255,255,255,0.4); margin-left: auto; }
-        .comment-content { font-size: 14px; margin-left: 46px; }
-        .add-comment { margin-top: 20px; background: rgba(20,30,45,0.6); border-radius: 20px; padding: 20px; }
-        .add-comment textarea { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 12px; color: white; resize: vertical; margin-bottom: 12px; }
-        .verified-badge { display: inline-block; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; text-align: center; line-height: 18px; margin-left: 6px; }
+        .premium-nick { background: linear-gradient(90deg, #9b59b6, #ffffff, #9b59b6, #ffffff, #9b59b6); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: premiumGlow 2s linear infinite; font-weight: 800; }
+        @keyframes premiumGlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        .verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: #667eea; border-radius: 50%; color: white; font-size: 11px; margin-left: 4px; }
+        .premium-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; font-size: 14px; }
+        .mention { color: #667eea; cursor: pointer; text-decoration: none; font-weight: 500; background: rgba(102, 126, 234, 0.15); padding: 0 4px; border-radius: 4px; transition: all 0.2s; }
+        .mention:hover { background: rgba(102, 126, 234, 0.3); text-decoration: underline; }
         @media (max-width: 768px) { .post-detail-container { margin-top: 70px; padding: 16px; } }
     </style>
 </head>
 <body>
-    <div class="post-detail-container">
-        <div class="post-card">
-            <div class="post-header">
-                {% if post.avatar %}<img src="{{ post.avatar }}" class="post-avatar">{% else %}<div class="avatar-placeholder" style="width:50px;height:50px;">{{ post.username[0].upper() }}</div>{% endif %}
-                <div><div class="post-author">{{ post.full_name or post.username }}{% if post.is_admin %}<span class="verified-badge">✓</span>{% endif %}</div><div class="post-date">{{ post.created_at|format_time }}</div></div>
+    <div class="post-detail-container" style="max-width: 680px; margin: 80px auto 40px; padding: 20px;">
+        <div class="post-card" style="background: rgba(20,30,45,0.6); backdrop-filter: blur(12px); border-radius: 20px; padding: 20px; margin-bottom: 24px;">
+            <div class="post-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                {% if post.avatar %}<img src="{{ post.avatar }}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">{% else %}<div class="avatar-placeholder" style="width:50px;height:50px;">{{ post.username[0].upper() }}</div>{% endif %}
+                <div><div class="post-author-name" style="font-weight: bold; font-size: 16px;">{{ post.full_name or post.username }}{% if post.is_admin %}<span class="verified-badge">✓</span>{% endif %}</div><div class="post-date" style="font-size: 12px; color: rgba(255,255,255,0.5);">{{ post.created_at|format_time }}</div></div>
             </div>
-            <div class="post-content">{{ post.content }}</div>
-            {% if post.media_path and (post.media_type == 'image' or post.media_type == 'gif') %}
-            <div class="post-media"><img src="{{ post.media_path }}" alt="Post media" onclick="openLightbox(this.src)"></div>
-            {% endif %}
-            <div class="post-stats">❤️ {{ post.likes }} лайков &nbsp;|&nbsp; 💬 {{ comments|length }} комментариев</div>
+            <div class="post-content" style="font-size: 16px; line-height: 1.5; margin-bottom: 16px;">{{ post.content }}</div>
+            {% if post.media_path and (post.media_type == 'image' or post.media_type == 'gif') %}<div class="post-media" style="margin-bottom: 16px;"><img src="{{ post.media_path }}" style="width: 100%; border-radius: 12px; cursor: pointer;" onclick="openLightbox(this.src)"></div>{% endif %}
+            {% if post.media_path and post.media_type == 'video' %}<div class="post-media" style="margin-bottom: 16px;"><video controls src="{{ post.media_path }}" style="width: 100%; border-radius: 12px;"></video></div>{% endif %}
+            {% if post.media_path and post.media_type == 'audio' %}<div class="audio-player-container" style="margin-bottom: 16px;"><audio controls src="{{ post.media_path }}" style="width: 100%;"></audio></div>{% endif %}
+            <div class="post-stats" style="display: flex; gap: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">❤️ {{ post.likes }} лайков &nbsp;|&nbsp; 💬 {{ comments|length }} комментариев</div>
         </div>
         
         <div class="comments-section">
-            <h3>💬 Комментарии ({{ comments|length }})</h3>
+            <h3 style="margin-bottom: 16px;">💬 Комментарии ({{ comments|length }})</h3>
             {% for comment in comments %}
-            <div class="comment">
-                <div class="comment-header">
-                    {% if comment.avatar %}<img src="{{ comment.avatar }}" class="comment-avatar">{% else %}<div class="avatar-placeholder" style="width:36px;height:36px;font-size:16px;">{{ comment.username[0].upper() }}</div>{% endif %}
-                    <div class="comment-author">{{ comment.username }}{% if comment.is_admin %}<span class="verified-badge">✓</span>{% endif %}</div>
-                    <div class="comment-time">{{ comment.created_at|format_time }}</div>
+            <div class="comment" style="background: rgba(20,30,45,0.4); border-radius: 16px; padding: 16px; margin-bottom: 12px;">
+                <div class="comment-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    {% if comment.avatar %}<img src="{{ comment.avatar }}" style="width: 36px; height: 36px; border-radius: 50%;">{% else %}<div class="avatar-placeholder" style="width:36px;height:36px;font-size:16px;">{{ comment.username[0].upper() }}</div>{% endif %}
+                    <div class="comment-author" style="font-weight: 600; font-size: 14px;">{{ comment.username }}{% if comment.is_admin %}<span class="verified-badge">✓</span>{% endif %}</div>
+                    <div class="comment-time" style="font-size: 11px; color: rgba(255,255,255,0.4); margin-left: auto;">{{ comment.created_at|format_time }}</div>
                 </div>
-                <div class="comment-content">{{ comment.content }}</div>
+                <div class="comment-content" style="font-size: 14px; margin-left: 46px;">{{ comment.content }}</div>
             </div>
-            {% else %}
-            <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5);">Нет комментариев. Будьте первым!</div>
-            {% endfor %}
+            {% else %}<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5);">Нет комментариев. Будьте первым!</div>{% endfor %}
         </div>
         
-        <div class="add-comment">
+        <div class="add-comment" style="margin-top: 20px; background: rgba(20,30,45,0.6); border-radius: 20px; padding: 20px;">
             <form method="POST" action="/add_comment/{{ post.id }}">
-                <textarea name="content" placeholder="Написать комментарий..." rows="3"></textarea>
-                <button type="submit" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;padding:12px 24px;border-radius:30px;color:white;cursor:pointer;width:100%;">💬 Отправить</button>
+                <textarea name="content" placeholder="Написать комментарий... Используйте @username для упоминаний" rows="3" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:12px; color:white; resize:vertical; margin-bottom:12px;"></textarea>
+                <button type="submit" style="background:linear-gradient(135deg,#667eea,#764ba2); border:none; padding:12px 24px; border-radius:30px; color:white; cursor:pointer; width:100%;">💬 Отправить</button>
             </form>
         </div>
     </div>
     
     <div class="bottom-nav" style="position:fixed;bottom:0;left:0;right:0;background:rgba(15,20,35,0.95);backdrop-filter:blur(20px);display:flex;justify-content:space-around;padding:8px 16px 20px;z-index:1000">
-        <a href="/feed" class="nav-item"><span>🏠</span><span>Лента</span></a>
-        <a href="/search" class="nav-item"><span>🔍</span><span>Поиск</span></a>
-        <a href="/chats" class="nav-item"><span>💬</span><span>Чаты</span></a>
-        <a href="/profile/{{ user_id }}" class="nav-item"><span>👤</span><span>Профиль</span></a>
+        <a href="/feed" class="nav-item" style="display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:rgba(255,255,255,0.6);"><span style="font-size:22px;">🏠</span><span style="font-size:10px;">Лента</span></a>
+        <a href="/search" class="nav-item" style="display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:rgba(255,255,255,0.6);"><span style="font-size:22px;">🔍</span><span style="font-size:10px;">Поиск</span></a>
+        <a href="/chats" class="nav-item" style="display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:rgba(255,255,255,0.6);"><span style="font-size:22px;">💬</span><span style="font-size:10px;">Чаты</span></a>
+        <a href="/profile/{{ user_id }}" class="nav-item" style="display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:rgba(255,255,255,0.6);"><span style="font-size:22px;">👤</span><span style="font-size:10px;">Профиль</span></a>
     </div>
     
-    <div id="lightbox" class="lightbox" onclick="closeLightbox()"><span class="lightbox-close">&times;</span><img id="lightbox-img" src=""></div>
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:2000;align-items:center;justify-content:center;"><span class="lightbox-close" style="position:absolute;top:20px;right:25px;color:white;font-size:40px;cursor:pointer;">&times;</span><img id="lightbox-img" src=""></div>
     
     <script>
-        function openLightbox(src) { document.getElementById('lightbox-img').src = src; document.getElementById('lightbox').classList.add('active'); }
-        function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+        function openLightbox(src){ document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').style.display='flex'; }
+        function closeLightbox(){ document.getElementById('lightbox').style.display='none'; }
+        document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLightbox(); });
+        
+        function processMentions(){
+            document.querySelectorAll('.post-content, .comment-content').forEach(el=>{
+                if(!el.hasAttribute('data-processed')){
+                    let html=el.innerHTML;
+                    html=html.replace(/@(\w+)/g,'<a href="/profile/$1" class="mention">@$1</a>');
+                    el.innerHTML=html;
+                    el.setAttribute('data-processed','true');
+                }
+            });
+        }
+        setInterval(processMentions,1000);
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     </script>
 </body>
 </html>
