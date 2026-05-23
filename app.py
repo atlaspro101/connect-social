@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from database import *
 from flask import Flask, render_template, request, redirect, session, url_for, jsonify, send_from_directory
 import hashlib
 from werkzeug.utils import secure_filename
@@ -11,6 +12,7 @@ import requests
 import json
 import secrets
 import shutil
+import base64
 import re
 
 # Для QR и WebSocket
@@ -19,8 +21,9 @@ from flask_sock import Sock
 # Для 2FA
 import pyotp
 
-# Для бэкапов
+# Для бэкапов и графиков
 from apscheduler.schedulers.background import BackgroundScheduler
+from collections import defaultdict
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, 'users.db')
@@ -56,8 +59,7 @@ def allowed_file(filename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-
-# ========== ДЕКОРАТОРЫ ==========
+# ========== ДЕКОРАТОРЫ (ДОЛЖНЫ БЫТЬ В САМОМ НАЧАЛЕ!) ==========
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -78,6 +80,13 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# ========== Хранилища ==========
+qr_sessions = {}
+ws_connections = {}
+verification_codes = {}
+reset_tokens = {}
+friend_qr_sessions = {}
+push_subscriptions = {}
 
 # ========== ФУНКЦИИ БД ==========
 def get_db():
@@ -118,6 +127,17 @@ def get_user(username, password):
     except:
         return None
 
+def get_user_by_email(email):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT id, username, email FROM users WHERE email = ?", (email,))
+        user = c.fetchone()
+        conn.close()
+        return dict(user) if user else None
+    except:
+        return None
+
 def add_user(username, password, full_name, birthday, gender, bio, avatar, email=None, phone=None):
     try:
         conn = get_db()
@@ -134,27 +154,56 @@ def update_user_profile(user_id, full_name=None, bio=None, birthday=None, gender
     try:
         conn = get_db()
         c = conn.cursor()
-        if full_name is not None:
+        if full_name:
             c.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name, user_id))
-        if bio is not None:
+        if bio:
             c.execute("UPDATE users SET bio = ? WHERE id = ?", (bio, user_id))
-        if birthday is not None:
+        if birthday:
             c.execute("UPDATE users SET birthday = ? WHERE id = ?", (birthday, user_id))
-        if gender is not None:
+        if gender:
             c.execute("UPDATE users SET gender = ? WHERE id = ?", (gender, user_id))
-        if avatar is not None:
+        if avatar:
             c.execute("UPDATE users SET avatar = ? WHERE id = ?", (avatar, user_id))
-        if banner is not None:
+        if banner:
             c.execute("UPDATE users SET banner = ? WHERE id = ?", (banner, user_id))
-        if email is not None:
+        if email:
             c.execute("UPDATE users SET email = ? WHERE id = ?", (email, user_id))
-        if phone is not None:
+        if phone:
             c.execute("UPDATE users SET phone = ? WHERE id = ?", (phone, user_id))
         conn.commit()
         conn.close()
         return True
     except:
         return False
+
+def update_user_settings(user_id, theme_color=None, theme_background=None, chat_wallpaper=None, animations_enabled=None):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        if theme_color:
+            c.execute("UPDATE users SET theme_color = ? WHERE id = ?", (theme_color, user_id))
+        if theme_background:
+            c.execute("UPDATE users SET theme_background = ? WHERE id = ?", (theme_background, user_id))
+        if chat_wallpaper:
+            c.execute("UPDATE users SET chat_wallpaper = ? WHERE id = ?", (chat_wallpaper, user_id))
+        if animations_enabled is not None:
+            c.execute("UPDATE users SET animations_enabled = ? WHERE id = ?", (animations_enabled, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        return False
+
+def get_user_settings(user_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("SELECT theme_color, theme_background, chat_wallpaper, animations_enabled FROM users WHERE id = ?", (user_id,))
+        settings = c.fetchone()
+        conn.close()
+        return dict(settings) if settings else {'theme_color': 'purple', 'theme_background': 'gradient', 'chat_wallpaper': '', 'animations_enabled': 1}
+    except:
+        return {'theme_color': 'purple', 'theme_background': 'gradient', 'chat_wallpaper': '', 'animations_enabled': 1}
 
 def add_post(user_id, content, media_path=None, media_type=None):
     try:
@@ -516,7 +565,6 @@ def get_user_achievements(user_id):
     except:
         return []
 
-
 # ========== ФУНКЦИИ ДЛЯ ЧАТОВ ==========
 def get_or_create_chat(user1_id, user2_id):
     conn = sqlite3.connect(DATABASE_PATH)
@@ -654,7 +702,6 @@ def is_blocked(user_id, other_user_id):
     except:
         return False
 
-
 # ========== УПОМИНАНИЯ (@username) ==========
 def extract_mentions(text):
     """Извлекает все упоминания @username из текста"""
@@ -693,43 +740,6 @@ def send_mention_notification(mentioned_user_id, post_id, comment_id, author_nam
         print(f"Mention error: {e}")
         return False
 
-@app.route('/api/mentions')
-@login_required
-def get_mentions():
-    """Получить все упоминания пользователя"""
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''
-            SELECT * FROM notifications 
-            WHERE user_id = ? AND type = 'mention'
-            ORDER BY created_at DESC
-            LIMIT 50
-        ''', (session['user_id'],))
-        notifications = c.fetchall()
-        conn.close()
-        return jsonify([dict(n) for n in notifications])
-    except:
-        return jsonify([])
-
-@app.route('/api/mentions/mark_read', methods=['POST'])
-@login_required
-def mark_mentions_read():
-    """Отметить упоминания как прочитанные"""
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''
-            UPDATE notifications SET is_read = 1 
-            WHERE user_id = ? AND type = 'mention'
-        ''', (session['user_id'],))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True})
-    except:
-        return jsonify({'success': False})
-
-
 # ========== СТОРИС ==========
 def delete_expired_stories():
     """Удаляет истекшие сторис"""
@@ -741,191 +751,6 @@ def delete_expired_stories():
         conn.close()
     except:
         pass
-
-@app.route('/api/stories/upload', methods=['POST'])
-@login_required
-def upload_story():
-    """Загрузка новой истории"""
-    try:
-        media_path = None
-        media_type = None
-        text = request.form.get('text', '')
-        
-        if 'media' not in request.files:
-            return jsonify({'success': False, 'error': 'No media file'}), 400
-        
-        file = request.files['media']
-        if not file or not file.filename:
-            return jsonify({'success': False, 'error': 'Empty file'}), 400
-        
-        if not allowed_file(file.filename):
-            return jsonify({'success': False, 'error': 'File type not allowed'}), 400
-        
-        filename = secure_filename(f"story_{session['user_id']}_{int(datetime.now().timestamp())}_{file.filename}")
-        ext = filename.rsplit('.', 1)[1].lower()
-        
-        if ext in ['mp4', 'webm', 'mov', 'avi']:
-            subfolder = 'stories_video'
-            media_type = 'video'
-        else:
-            subfolder = 'stories_photos'
-            media_type = 'photo'
-        
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], subfolder, filename)
-        file.save(filepath)
-        media_path = f'/static/uploads/{subfolder}/{filename}'
-        
-        expires_at = datetime.now() + timedelta(hours=24)
-        
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''
-            INSERT INTO stories (user_id, media_path, media_type, text, created_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (session['user_id'], media_path, media_type, text, datetime.now(), expires_at))
-        story_id = c.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True, 'story_id': story_id})
-    except Exception as e:
-        print(f"Upload story error: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/stories')
-@login_required
-def get_stories():
-    """Получить активные истории"""
-    try:
-        # Удаляем истекшие
-        delete_expired_stories()
-        
-        conn = get_db()
-        c = conn.cursor()
-        
-        # Получаем подписки пользователя
-        c.execute("SELECT following_id FROM followers WHERE follower_id = ?", (session['user_id'],))
-        following = [row[0] for row in c.fetchall()]
-        following.append(session['user_id'])
-        
-        if not following:
-            following = [session['user_id']]
-        
-        placeholders = ','.join('?' * len(following))
-        query = f'''
-            SELECT s.*, u.username, u.avatar, u.full_name, u.is_premium, u.is_verified
-            FROM stories s
-            JOIN users u ON s.user_id = u.id
-            WHERE s.user_id IN ({placeholders}) AND s.expires_at > ?
-            ORDER BY s.created_at DESC
-        '''
-        c.execute(query, following + [datetime.now()])
-        
-        stories = c.fetchall()
-        conn.close()
-        
-        # Группируем по пользователям
-        stories_by_user = {}
-        for story in stories:
-            story_dict = dict(story)
-            user_id = story_dict['user_id']
-            if user_id not in stories_by_user:
-                stories_by_user[user_id] = {
-                    'user': {
-                        'id': user_id,
-                        'username': story_dict['username'],
-                        'avatar': story_dict['avatar'],
-                        'full_name': story_dict['full_name'],
-                        'is_premium': story_dict['is_premium'],
-                        'is_verified': story_dict['is_verified']
-                    },
-                    'stories': []
-                }
-            stories_by_user[user_id]['stories'].append(story_dict)
-        
-        return jsonify({'success': True, 'stories': list(stories_by_user.values())})
-    except Exception as e:
-        print(f"Get stories error: {e}")
-        return jsonify({'success': True, 'stories': []})
-
-@app.route('/api/stories/<int:story_id>/view', methods=['POST'])
-@login_required
-def view_story(story_id):
-    """Отметить просмотр истории"""
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''
-            INSERT OR IGNORE INTO story_views (story_id, user_id, viewed_at)
-            VALUES (?, ?, ?)
-        ''', (story_id, session['user_id'], datetime.now()))
-        c.execute('UPDATE stories SET views = views + 1 WHERE id = ?', (story_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True})
-    except:
-        return jsonify({'success': False})
-
-@app.route('/api/stories/<int:story_id>/react', methods=['POST'])
-@login_required
-def react_to_story(story_id):
-    """Добавить реакцию на историю"""
-    try:
-        data = request.get_json()
-        reaction = data.get('reaction', '❤️')
-        
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''
-            INSERT OR REPLACE INTO story_reactions (story_id, user_id, reaction, created_at)
-            VALUES (?, ?, ?, ?)
-        ''', (story_id, session['user_id'], reaction, datetime.now()))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True})
-    except:
-        return jsonify({'success': False})
-
-@app.route('/stories')
-@login_required
-def stories_page():
-    """Страница просмотра сторис"""
-    return render_template('stories.html', 
-                         username=session['username'],
-                         user_id=session['user_id'],
-                         is_admin=session.get('is_admin', False),
-                         is_premium=session.get('is_premium', False))
-
-
-# ========== ФОРМАТИРОВАНИЕ ==========
-@app.template_filter('format_time')
-def format_time_filter(date_value):
-    if not date_value:
-        return ""
-    if isinstance(date_value, datetime):
-        return date_value.strftime('%d.%m.%Y %H:%M')
-    if isinstance(date_value, str):
-        try:
-            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
-            return date_obj.strftime('%d.%m.%Y %H:%M')
-        except:
-            try:
-                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
-                return date_obj.strftime('%d.%m.%Y %H:%M')
-            except:
-                return date_value[:16]
-    return str(date_value)[:16]
-
-@app.template_filter('format_date')
-def format_date_filter(date_value):
-    if not date_value:
-        return "январь 2026 г."
-    if isinstance(date_value, datetime):
-        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-        return f"{months[date_value.month - 1]} {date_value.year} г."
-    return "январь 2026 г."
-
 
 # ========== CONNECT MUSIC API ==========
 def format_duration(seconds):
@@ -962,93 +787,6 @@ def save_user_playlist(user_id, playlist):
     with open(playlist_file, 'w', encoding='utf-8') as f:
         json.dump(playlist, f, ensure_ascii=False, indent=2)
 
-@app.route('/api/music/search')
-@login_required
-def music_search():
-    query = request.args.get('q', '')
-    if not query:
-        return jsonify({'error': 'No query'}), 400
-    try:
-        response = requests.get('https://api.deezer.com/search', params={'q': query, 'limit': 30}, timeout=15)
-        if response.status_code == 200:
-            data = response.json()
-            tracks = []
-            for item in data.get('data', []):
-                if item.get('preview'):
-                    tracks.append({
-                        'id': item.get('id'),
-                        'title': item.get('title'),
-                        'artist': item.get('artist', {}).get('name', 'Unknown'),
-                        'duration': format_duration(item.get('duration', 0)),
-                        'cover': item.get('album', {}).get('cover_medium', ''),
-                        'preview': item.get('preview'),
-                        'link': item.get('link', '')
-                    })
-            return jsonify({'success': True, 'tracks': tracks})
-        return jsonify({'success': True, 'tracks': get_demo_tracks()})
-    except:
-        return jsonify({'success': True, 'tracks': get_demo_tracks()})
-
-@app.route('/api/music/favorites')
-@login_required
-def music_favorites():
-    playlist = get_user_playlist(session['user_id'])
-    return jsonify({'success': True, 'tracks': playlist})
-
-@app.route('/api/music/add_favorite', methods=['POST'])
-@login_required
-def music_add_favorite():
-    data = request.get_json()
-    track = data.get('track', {})
-    if not track.get('id'):
-        return jsonify({'success': False, 'error': 'No track data'}), 400
-    
-    playlist = get_user_playlist(session['user_id'])
-    if not any(t.get('id') == track.get('id') for t in playlist):
-        track['added_at'] = datetime.now().isoformat()
-        playlist.insert(0, track)
-        save_user_playlist(session['user_id'], playlist)
-        return jsonify({'success': True, 'added': True})
-    return jsonify({'success': True, 'added': False, 'message': 'Already in favorites'})
-
-@app.route('/api/music/remove_favorite', methods=['POST'])
-@login_required
-def music_remove_favorite():
-    data = request.get_json()
-    track_id = data.get('track_id')
-    if not track_id:
-        return jsonify({'success': False, 'error': 'No track id'}), 400
-    
-    playlist = get_user_playlist(session['user_id'])
-    playlist = [t for t in playlist if t.get('id') != track_id]
-    save_user_playlist(session['user_id'], playlist)
-    return jsonify({'success': True, 'removed': True})
-
-@app.route('/api/music/playlist/<playlist_id>')
-@login_required
-def music_playlist(playlist_id):
-    try:
-        response = requests.get(f'https://api.deezer.com/playlist/{playlist_id}/tracks', params={'limit': 30}, timeout=15)
-        if response.status_code == 200:
-            data = response.json()
-            tracks = []
-            for item in data.get('data', []):
-                if item.get('preview'):
-                    tracks.append({
-                        'id': item.get('id'),
-                        'title': item.get('title'),
-                        'artist': item.get('artist', {}).get('name', 'Unknown'),
-                        'duration': format_duration(item.get('duration', 0)),
-                        'cover': item.get('album', {}).get('cover_medium', ''),
-                        'preview': item.get('preview'),
-                        'link': item.get('link', '')
-                    })
-            return jsonify({'success': True, 'tracks': tracks})
-        return jsonify({'success': True, 'tracks': get_demo_tracks()})
-    except:
-        return jsonify({'success': True, 'tracks': get_demo_tracks()})
-
-
 # ========== РЕЗЕРВНОЕ КОПИРОВАНИЕ ==========
 def backup_database():
     backup_dir = os.path.join(BASE_DIR, 'backups')
@@ -1065,21 +803,49 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=backup_database, trigger="cron", hour=3, minute=0)
 scheduler.start()
 
-
 # ========== KEEP-ALIVE ==========
 def keep_alive():
     url = 'https://connectss-mapb.onrender.com'
     while True:
         try:
+            print(f"[KEEP-ALIVE] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Сервер активен")
             requests.get(url, timeout=10)
-        except:
-            pass
+        except Exception as e:
+            print(f"[KEEP-ALIVE] Ошибка: {e}")
         time.sleep(60)
 
 def start_keep_alive():
     thread = threading.Thread(target=keep_alive, daemon=True)
     thread.start()
 
+# ========== ФИЛЬТРЫ ==========
+@app.template_filter('format_time')
+def format_time_filter(date_value):
+    if not date_value:
+        return ""
+    if isinstance(date_value, datetime):
+        return date_value.strftime('%d.%m.%Y %H:%M')
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S.%f')
+            return date_obj.strftime('%d.%m.%Y %H:%M')
+        except:
+            try:
+                date_obj = datetime.strptime(date_value, '%Y-%m-%d %H:%M:%S')
+                return date_obj.strftime('%d.%m.%Y %H:%M')
+            except:
+                return date_value[:16]
+    return str(date_value)[:16]
+
+@app.template_filter('format_date')
+def format_date_filter(date_value):
+    if not date_value:
+        return "январь 2026 г."
+    if isinstance(date_value, datetime):
+        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+        return f"{months[date_value.month - 1]} {date_value.year} г."
+    return "январь 2026 г."
 
 # ========== ОСНОВНЫЕ МАРШРУТЫ ==========
 @app.route('/')
@@ -1111,7 +877,8 @@ def register():
         
         if add_user(username, password, full_name, birthday, gender, bio, avatar_path, email, phone):
             return redirect(url_for('login'))
-        return render_template('register.html', error='Имя пользователя уже существует')
+        else:
+            return render_template('register.html', error='Имя пользователя уже существует')
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -1128,7 +895,8 @@ def login():
             session['is_premium'] = user['is_premium'] if len(user) > 9 else 0
             update_last_seen(user['id'])
             return redirect(url_for('feed'))
-        return render_template('login.html', error='Неверное имя пользователя или пароль')
+        else:
+            return render_template('login.html', error='Неверное имя пользователя или пароль')
     return render_template('login.html')
 
 @app.route('/feed', methods=['GET', 'POST'])
@@ -1151,7 +919,7 @@ def feed():
                 elif ext == 'gif':
                     subfolder = 'gifs'
                     media_type = 'gif'
-                elif ext in ['mp4', 'mov', 'avi', 'webm']:
+                elif ext in ['mp4', 'mov', 'avi']:
                     subfolder = 'photos'
                     media_type = 'video'
                 else:
@@ -1318,7 +1086,6 @@ def like_post_route(post_id):
         add_experience(session['user_id'], 1)
         return jsonify({'liked': True, 'likes_count': post['likes'] if post else 0})
 
-
 # ========== АДМИН ПАНЕЛЬ ==========
 @app.route('/admin')
 @admin_required
@@ -1388,6 +1155,17 @@ def chats():
                          is_admin=session.get('is_admin', False), 
                          is_premium=session.get('is_premium', False),
                          user_avatar=current_user['avatar'] if current_user else None)
+
+@app.route('/music')
+@login_required
+def music():
+    user = get_user_by_id(session['user_id'])
+    return render_template('music.html', 
+                         username=session['username'],
+                         user_id=session['user_id'],
+                         is_admin=session.get('is_admin', False),
+                         is_premium=session.get('is_premium', False),
+                         user_avatar=user['avatar'] if user else None)
 
 @app.route('/chat/<int:user_id>')
 @login_required
@@ -1467,17 +1245,6 @@ def api_me():
         }})
     return jsonify({'user': None})
 
-@app.route('/music')
-@login_required
-def music():
-    user = get_user_by_id(session['user_id'])
-    return render_template('music.html', 
-                         username=session['username'],
-                         user_id=session['user_id'],
-                         is_admin=session.get('is_admin', False),
-                         is_premium=session.get('is_premium', False),
-                         user_avatar=user['avatar'] if user else None)
-
 @app.route('/logout')
 def logout():
     session.clear()
@@ -1487,8 +1254,503 @@ def logout():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
+# ========== QR ВХОД ==========
+@sock.route('/ws/qr/<session_id>')
+def ws_qr(ws, session_id):
+    ws_connections[session_id] = ws
+    try:
+        while True:
+            data = ws.receive()
+            if data:
+                pass
+    except:
+        pass
+    finally:
+        if session_id in ws_connections:
+            del ws_connections[session_id]
+
+@app.route('/qr-login')
+def qr_login():
+    session_id = secrets.token_urlsafe(32)
+    qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
+    return render_template('qr_login.html', session_id=session_id)
+
+@app.route('/qr/scan/<session_id>')
+def qr_scan(session_id):
+    if session_id not in qr_sessions:
+        qr_sessions[session_id] = {'status': 'pending', 'created_at': datetime.now()}
+    return render_template('qr_scan.html', session_id=session_id)
+
+@app.route('/api/qr/status/<session_id>')
+def api_qr_status(session_id):
+    if session_id in qr_sessions:
+        return jsonify({'status': qr_sessions[session_id].get('status', 'pending')})
+    return jsonify({'status': 'pending'})
+
+@app.route('/api/qr/confirm', methods=['POST'])
+@login_required
+def api_qr_confirm():
+    data = request.get_json()
+    session_id = data.get('session_id')
+    
+    if session_id in qr_sessions:
+        qr_sessions[session_id]['status'] = 'confirmed'
+        qr_sessions[session_id]['user_id'] = session['user_id']
+        
+        if session_id in ws_connections:
+            try:
+                ws_connections[session_id].send(json.dumps({
+                    'type': 'login_success',
+                    'user_id': session['user_id'],
+                    'username': session['username']
+                }))
+            except:
+                pass
+        
+        return jsonify({'success': True, 'user_id': session['user_id'], 'username': session['username']})
+    
+    return jsonify({'success': False})
+
+@app.route('/api/qr/login/<session_id>')
+def api_qr_login(session_id):
+    if session_id in qr_sessions and qr_sessions[session_id].get('status') == 'confirmed':
+        user_id = qr_sessions[session_id].get('user_id')
+        user = get_user_by_id(user_id)
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['is_admin'] = user['is_admin']
+            session['is_premium'] = user['is_premium']
+            update_last_seen(user['id'])
+            return redirect(url_for('feed'))
+    
+    return redirect(url_for('login'))
+
+# ========== QR-КОД ДЛЯ ДОБАВЛЕНИЯ ДРУЗЕЙ ==========
+@app.route('/qr/friend')
+@login_required
+def qr_friend():
+    session_id = secrets.token_urlsafe(32)
+    user = get_user_by_id(session['user_id'])
+    friend_qr_sessions[session_id] = {
+        'user_id': session['user_id'],
+        'username': session['username'],
+        'full_name': user.get('full_name') if user else session['username'],
+        'created_at': datetime.now()
+    }
+    return render_template('qr_friend.html', session_id=session_id, username=session['username'], full_name=user.get('full_name') if user else session['username'], user_id=session['user_id'])
+
+@app.route('/qr/friend/scan/<session_id>')
+def qr_friend_scan(session_id):
+    if session_id not in friend_qr_sessions:
+        return "QR-код недействителен", 404
+    return render_template('qr_friend_scan.html', session_id=session_id, friend=friend_qr_sessions[session_id])
+
+@app.route('/api/friend/add/<int:friend_id>', methods=['POST'])
+@login_required
+def api_friend_add(friend_id):
+    if session['user_id'] == friend_id:
+        return jsonify({'success': False, 'error': 'Нельзя добавить себя'})
+    
+    if follow_user(session['user_id'], friend_id):
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Уже в друзьях'})
+
+# ========== СТОРИС API ==========
+@app.route('/api/stories/upload', methods=['POST'])
+@login_required
+def upload_story():
+    """Загрузка новой истории"""
+    try:
+        media_path = None
+        media_type = None
+        text = request.form.get('text', '')
+        
+        if 'media' not in request.files:
+            return jsonify({'success': False, 'error': 'No media file'}), 400
+        
+        file = request.files['media']
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'Empty file'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'File type not allowed'}), 400
+        
+        filename = secure_filename(f"story_{session['user_id']}_{int(datetime.now().timestamp())}_{file.filename}")
+        ext = filename.rsplit('.', 1)[1].lower()
+        
+        if ext in ['mp4', 'webm', 'mov', 'avi']:
+            subfolder = 'stories_video'
+            media_type = 'video'
+        else:
+            subfolder = 'stories_photos'
+            media_type = 'photo'
+        
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], subfolder, filename)
+        file.save(filepath)
+        media_path = f'/static/uploads/{subfolder}/{filename}'
+        
+        expires_at = datetime.now() + timedelta(hours=24)
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS stories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            media_path TEXT,
+            media_type TEXT,
+            text TEXT,
+            created_at TIMESTAMP,
+            expires_at TIMESTAMP,
+            views INTEGER DEFAULT 0
+        )''')
+        
+        c.execute('''
+            INSERT INTO stories (user_id, media_path, media_type, text, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (session['user_id'], media_path, media_type, text, datetime.now(), expires_at))
+        story_id = c.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'story_id': story_id})
+    except Exception as e:
+        print(f"Upload story error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/stories')
+@login_required
+def get_stories():
+    """Получить активные истории"""
+    try:
+        delete_expired_stories()
+        
+        conn = get_db()
+        c = conn.cursor()
+        
+        c.execute('''CREATE TABLE IF NOT EXISTS story_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            story_id INTEGER,
+            user_id INTEGER,
+            viewed_at TIMESTAMP,
+            UNIQUE(story_id, user_id)
+        )''')
+        
+        c.execute('''CREATE TABLE IF NOT EXISTS story_reactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            story_id INTEGER,
+            user_id INTEGER,
+            reaction TEXT,
+            created_at TIMESTAMP,
+            UNIQUE(story_id, user_id)
+        )''')
+        
+        c.execute("SELECT following_id FROM followers WHERE follower_id = ?", (session['user_id'],))
+        following = [row[0] for row in c.fetchall()]
+        following.append(session['user_id'])
+        
+        if not following:
+            following = [session['user_id']]
+        
+        placeholders = ','.join('?' * len(following))
+        query = f'''
+            SELECT s.*, u.username, u.avatar, u.full_name
+            FROM stories s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.user_id IN ({placeholders}) AND s.expires_at > ?
+            ORDER BY s.created_at DESC
+        '''
+        c.execute(query, following + [datetime.now()])
+        
+        stories = c.fetchall()
+        conn.close()
+        
+        stories_by_user = {}
+        for story in stories:
+            story_dict = dict(story)
+            user_id = story_dict['user_id']
+            if user_id not in stories_by_user:
+                stories_by_user[user_id] = {
+                    'user': {
+                        'id': user_id,
+                        'username': story_dict['username'],
+                        'avatar': story_dict['avatar'],
+                        'full_name': story_dict['full_name']
+                    },
+                    'stories': []
+                }
+            stories_by_user[user_id]['stories'].append(story_dict)
+        
+        return jsonify({'success': True, 'stories': list(stories_by_user.values())})
+    except Exception as e:
+        print(f"Get stories error: {e}")
+        return jsonify({'success': True, 'stories': []})
+
+@app.route('/api/stories/<int:story_id>/view', methods=['POST'])
+@login_required
+def view_story(story_id):
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR IGNORE INTO story_views (story_id, user_id, viewed_at)
+            VALUES (?, ?, ?)
+        ''', (story_id, session['user_id'], datetime.now()))
+        c.execute('UPDATE stories SET views = views + 1 WHERE id = ?', (story_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except:
+        return jsonify({'success': False})
+
+@app.route('/api/stories/<int:story_id>/react', methods=['POST'])
+@login_required
+def react_to_story(story_id):
+    try:
+        data = request.get_json()
+        reaction = data.get('reaction', '❤️')
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            INSERT OR REPLACE INTO story_reactions (story_id, user_id, reaction, created_at)
+            VALUES (?, ?, ?, ?)
+        ''', (story_id, session['user_id'], reaction, datetime.now()))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except:
+        return jsonify({'success': False})
+
+@app.route('/stories')
+@login_required
+def stories_page():
+    user = get_user_by_id(session['user_id'])
+    return render_template('stories.html', 
+                         username=session['username'],
+                         user_id=session['user_id'],
+                         is_admin=session.get('is_admin', False),
+                         is_premium=session.get('is_premium', False),
+                         user_avatar=user['avatar'] if user else None)
+
+# ========== CONNECT MUSIC API МАРШРУТЫ ==========
+@app.route('/api/music/search')
+@login_required
+def music_search():
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify({'error': 'No query'}), 400
+    try:
+        response = requests.get('https://api.deezer.com/search', params={'q': query, 'limit': 30}, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            tracks = []
+            for item in data.get('data', []):
+                if item.get('preview'):
+                    tracks.append({
+                        'id': item.get('id'),
+                        'title': item.get('title'),
+                        'artist': item.get('artist', {}).get('name', 'Unknown'),
+                        'duration': format_duration(item.get('duration', 0)),
+                        'cover': item.get('album', {}).get('cover_medium', ''),
+                        'preview': item.get('preview'),
+                        'link': item.get('link', '')
+                    })
+            return jsonify({'success': True, 'tracks': tracks})
+        return jsonify({'success': True, 'tracks': get_demo_tracks()})
+    except:
+        return jsonify({'success': True, 'tracks': get_demo_tracks()})
+
+@app.route('/api/music/favorites')
+@login_required
+def music_favorites():
+    playlist = get_user_playlist(session['user_id'])
+    return jsonify({'success': True, 'tracks': playlist})
+
+@app.route('/api/music/add_favorite', methods=['POST'])
+@login_required
+def music_add_favorite():
+    data = request.get_json()
+    track = data.get('track', {})
+    if not track.get('id'):
+        return jsonify({'success': False, 'error': 'No track data'}), 400
+    
+    playlist = get_user_playlist(session['user_id'])
+    if not any(t.get('id') == track.get('id') for t in playlist):
+        track['added_at'] = datetime.now().isoformat()
+        playlist.insert(0, track)
+        save_user_playlist(session['user_id'], playlist)
+        return jsonify({'success': True, 'added': True})
+    return jsonify({'success': True, 'added': False, 'message': 'Already in favorites'})
+
+@app.route('/api/music/remove_favorite', methods=['POST'])
+@login_required
+def music_remove_favorite():
+    data = request.get_json()
+    track_id = data.get('track_id')
+    if not track_id:
+        return jsonify({'success': False, 'error': 'No track id'}), 400
+    
+    playlist = get_user_playlist(session['user_id'])
+    playlist = [t for t in playlist if t.get('id') != track_id]
+    save_user_playlist(session['user_id'], playlist)
+    return jsonify({'success': True, 'removed': True})
+
+@app.route('/api/music/playlist/<playlist_id>')
+@login_required
+def music_playlist(playlist_id):
+    try:
+        response = requests.get(f'https://api.deezer.com/playlist/{playlist_id}/tracks', params={'limit': 30}, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            tracks = []
+            for item in data.get('data', []):
+                if item.get('preview'):
+                    tracks.append({
+                        'id': item.get('id'),
+                        'title': item.get('title'),
+                        'artist': item.get('artist', {}).get('name', 'Unknown'),
+                        'duration': format_duration(item.get('duration', 0)),
+                        'cover': item.get('album', {}).get('cover_medium', ''),
+                        'preview': item.get('preview'),
+                        'link': item.get('link', '')
+                    })
+            return jsonify({'success': True, 'tracks': tracks})
+        return jsonify({'success': True, 'tracks': get_demo_tracks()})
+    except:
+        return jsonify({'success': True, 'tracks': get_demo_tracks()})
+
+# ========== 2FA ==========
+@app.route('/2fa/setup', methods=['POST'])
+@login_required
+def setup_2fa():
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(session['username'], issuer_name="Connect")
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET twofa_secret = ? WHERE id = ?", (secret, session['user_id']))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'secret': secret, 'uri': provisioning_uri})
+
+@app.route('/2fa/verify', methods=['GET', 'POST'])
+def twofa_verify():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        code = request.form.get('code')
+        user = get_user_by_id(session['user_id'])
+        
+        if user and user.get('twofa_secret'):
+            totp = pyotp.TOTP(user['twofa_secret'])
+            if totp.verify(code):
+                session['2fa_verified'] = True
+                return redirect(url_for('feed'))
+        
+        return render_template('twofa.html', error='Неверный код')
+    
+    return render_template('twofa.html')
+
+@app.route('/2fa/disable', methods=['POST'])
+@login_required
+def disable_2fa():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("UPDATE users SET twofa_secret = NULL WHERE id = ?", (session['user_id'],))
+    conn.commit()
+    conn.close()
+    session.pop('2fa_verified', None)
+    return jsonify({'success': True})
+
+# ========== ВОССТАНОВЛЕНИЕ ПАРОЛЯ ==========
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = get_user_by_email(email)
+        if user:
+            token = secrets.token_urlsafe(32)
+            reset_tokens[token] = {'user_id': user['id'], 'expires': datetime.now() + timedelta(hours=1)}
+            reset_url = url_for('reset_password', token=token, _external=True)
+            print(f"Ссылка для сброса пароля: {reset_url}")
+            return render_template('forgot_password.html', message='Инструкция отправлена на email')
+        return render_template('forgot_password.html', error='Email не найден')
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if token not in reset_tokens or reset_tokens[token]['expires'] < datetime.now():
+        return "Ссылка недействительна или истекла", 400
+    
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        hashed_password = hash_password(new_password)
+        user_id = reset_tokens[token]['user_id']
+        
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
+        conn.commit()
+        conn.close()
+        
+        del reset_tokens[token]
+        return redirect(url_for('login'))
+    
+    return render_template('reset_password.html', token=token)
+
+# ========== ПОДТВЕРЖДЕНИЕ EMAIL/ТЕЛЕФОНА ==========
+@app.route('/verify/send', methods=['POST'])
+@login_required
+def send_verification():
+    data = request.get_json()
+    contact_type = data.get('type')
+    contact = data.get('contact')
+    
+    if not contact:
+        return jsonify({'success': False, 'error': 'Контакт не указан'})
+    
+    code = str(secrets.randbelow(900000) + 100000)
+    verification_codes[session['user_id']] = {
+        'code': code,
+        'contact': contact,
+        'type': contact_type,
+        'expires': datetime.now() + timedelta(minutes=10)
+    }
+    
+    print(f"Код подтверждения для {contact}: {code}")
+    return jsonify({'success': True, 'message': 'Код отправлен'})
+
+@app.route('/verify/confirm', methods=['POST'])
+@login_required
+def confirm_verification():
+    data = request.get_json()
+    code = data.get('code')
+    
+    if session['user_id'] in verification_codes:
+        vc = verification_codes[session['user_id']]
+        if vc['code'] == code and vc['expires'] > datetime.now():
+            conn = get_db()
+            c = conn.cursor()
+            if vc['type'] == 'email':
+                c.execute("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
+            else:
+                c.execute("UPDATE users SET phone = ?, is_verified = 1 WHERE id = ?", (vc['contact'], session['user_id']))
+            conn.commit()
+            conn.close()
+            del verification_codes[session['user_id']]
+            return jsonify({'success': True})
+    
+    return jsonify({'success': False, 'error': 'Неверный код'})
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
 if __name__ == '__main__':
     start_keep_alive()
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
